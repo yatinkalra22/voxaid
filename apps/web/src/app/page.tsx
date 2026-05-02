@@ -55,12 +55,20 @@ export default function Home() {
           <span className="font-heading text-xl font-bold text-primary-700">
             VoxAID
           </span>
-          <a
-            href="#how-it-works"
-            className="text-sm font-medium text-slate-600 hover:text-primary-700 transition-colors"
-          >
-            How it works
-          </a>
+          <div className="flex items-center gap-4">
+            <a
+              href="#how-it-works"
+              className="text-sm font-medium text-slate-600 hover:text-primary-700 transition-colors"
+            >
+              How it works
+            </a>
+            <a
+              href="/story"
+              className="text-sm font-medium text-slate-600 hover:text-primary-700 transition-colors"
+            >
+              Priya&apos;s Story
+            </a>
+          </div>
         </div>
       </nav>
 
@@ -95,6 +103,12 @@ export default function Home() {
               >
                 See how it works
                 <ArrowRight className="w-4 h-4" />
+              </a>
+              <a
+                href="/story"
+                className="inline-flex items-center justify-center gap-2 bg-white text-slate-700 font-medium px-6 py-3 rounded-xl border border-slate-200 hover:bg-slate-50 transition-colors"
+              >
+                Read Priya&apos;s Story
               </a>
             </div>
           </motion.div>
