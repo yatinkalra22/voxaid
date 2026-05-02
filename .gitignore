@@ -35,11 +35,13 @@ __pycache__/
 venv/
 *.egg-info/
 
-# Docs (internal strategy files — not for public repo)
+# Docs (internal strategy + hackathon files — not part of project code)
 docs/research.md
 docs/kickoff-prompt.md
 docs/PLAN.md
 docs/CLAUDE.md
+docs/pitch-deck.md
+docs/video-script.md
 
 # Prisma
 prisma/*.db
