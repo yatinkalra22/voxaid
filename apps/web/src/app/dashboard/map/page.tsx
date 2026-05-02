@@ -1,6 +1,36 @@
 import { PatientMap } from "@/components/patient-map";
+import type { MapPatient } from "@/components/patient-map";
+import { getPatients } from "@/lib/api";
+import { MOCK_PATIENTS } from "@/lib/mock-data";
+import type { RiskLevel } from "@/lib/mock-data";
 
-export default function MapPage() {
+export default async function MapPage() {
+  const apiPatients = await getPatients();
+
+  // Normalize API or mock data into MapPatient shape
+  const patients: MapPatient[] =
+    apiPatients.length > 0
+      ? apiPatients
+          .filter((p) => p.latitude && p.longitude)
+          .map((p) => ({
+            id: p.id,
+            name: p.name,
+            phone: p.phone,
+            latitude: p.latitude!,
+            longitude: p.longitude!,
+            riskLevel: (p.screenings[0]?.depressionRisk ?? "low") as RiskLevel,
+            depressionScore: p.screenings[0]?.depressionScore ?? 0,
+          }))
+      : MOCK_PATIENTS.map((p) => ({
+          id: p.id,
+          name: p.name,
+          phone: p.phone,
+          latitude: p.latitude,
+          longitude: p.longitude,
+          riskLevel: p.lastScreening.riskLevel,
+          depressionScore: p.lastScreening.depressionScore,
+        }));
+
   return (
     <div className="space-y-4">
       <div>
@@ -12,7 +42,7 @@ export default function MapPage() {
         </p>
       </div>
 
-      <PatientMap />
+      <PatientMap patients={patients} />
     </div>
   );
 }

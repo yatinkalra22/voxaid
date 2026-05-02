@@ -20,7 +20,8 @@
     "deploy:ml": "./scripts/deploy.sh ml",
     "db:migrate": "./scripts/db-migrate.sh dev",
     "db:deploy": "./scripts/db-migrate.sh deploy",
-    "db:studio": "./scripts/db-migrate.sh studio"
+    "db:studio": "./scripts/db-migrate.sh studio",
+    "db:seed": "cd apps/api && npx prisma db seed"
   },
   "devDependencies": {
     "turbo": "^2.5.0"

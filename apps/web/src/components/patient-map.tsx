@@ -3,9 +3,20 @@
 import { useEffect, useRef } from "react";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
-import { MOCK_PATIENTS, RISK_CONFIG } from "@/lib/mock-data";
+import { RISK_CONFIG } from "@/lib/mock-data";
+import type { RiskLevel } from "@/lib/mock-data";
 
-export function PatientMap() {
+export interface MapPatient {
+  id: string;
+  name: string;
+  phone: string;
+  latitude: number;
+  longitude: number;
+  riskLevel: RiskLevel;
+  depressionScore: number;
+}
+
+export function PatientMap({ patients }: { patients: MapPatient[] }) {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
 
@@ -22,17 +33,14 @@ export function PatientMap() {
 
     map.current = new mapboxgl.Map({
       container: mapContainer.current,
-      // Light clinical style — matches the "Linear meets WHO" vibe
       style: "mapbox://styles/mapbox/light-v11",
-      center: [40, 10], // Centered between Africa/Asia to show all demo patients
+      center: [40, 10],
       zoom: 1.5,
     });
 
-    // Add patient markers
-    MOCK_PATIENTS.forEach((patient) => {
-      const risk = RISK_CONFIG[patient.lastScreening.riskLevel];
+    patients.forEach((patient) => {
+      const risk = RISK_CONFIG[patient.riskLevel];
 
-      // Custom marker element
       const el = document.createElement("div");
       el.className = "patient-marker";
       el.style.width = "14px";
@@ -43,7 +51,6 @@ export function PatientMap() {
       el.style.boxShadow = "0 1px 3px rgba(0,0,0,0.3)";
       el.style.cursor = "pointer";
 
-      // Popup with patient info
       const popup = new mapboxgl.Popup({
         offset: 12,
         closeButton: false,
@@ -66,10 +73,10 @@ export function PatientMap() {
               color: ${risk.color};
               background: ${risk.color}15;
             ">
-              ${patient.lastScreening.riskLevel}
+              ${patient.riskLevel}
             </span>
             <span style="font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums;">
-              ${(patient.lastScreening.depressionScore * 100).toFixed(0)}%
+              ${(patient.depressionScore * 100).toFixed(0)}%
             </span>
           </div>
           <a href="/dashboard/patient/${patient.id}"
@@ -90,7 +97,7 @@ export function PatientMap() {
     return () => {
       map.current?.remove();
     };
-  }, []);
+  }, [patients]);
 
   return (
     <div

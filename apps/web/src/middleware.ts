@@ -1,7 +1,7 @@
 import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 
 // Public routes — landing page and API health
-const isPublicRoute = createRouteMatcher(["/", "/sign-in(.*)", "/sign-up(.*)"]);
+const isPublicRoute = createRouteMatcher(["/", "/story", "/sign-in(.*)", "/sign-up(.*)"]);
 
 // Everything under /dashboard requires auth
 export default clerkMiddleware(async (auth, request) => {

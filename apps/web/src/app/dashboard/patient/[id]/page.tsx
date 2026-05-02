@@ -11,17 +11,66 @@ import {
   FileText,
   Send,
 } from "lucide-react";
+import { getPatient } from "@/lib/api";
 import { MOCK_PATIENTS, RISK_CONFIG } from "@/lib/mock-data";
+import type { RiskLevel } from "@/lib/mock-data";
 
-export default function PatientDetailPage({
+export default async function PatientDetailPage({
   params,
 }: {
   params: { id: string };
 }) {
-  const patient = MOCK_PATIENTS.find((p) => p.id === params.id);
-  if (!patient) return notFound();
+  // Try API first, fall back to mock
+  const apiPatient = await getPatient(params.id);
+  const mockPatient = MOCK_PATIENTS.find((p) => p.id === params.id);
 
-  const s = patient.lastScreening;
+  if (!apiPatient && !mockPatient) return notFound();
+
+  // Normalize to common shape
+  const patient = apiPatient
+    ? {
+        name: apiPatient.name,
+        phone: apiPatient.phone,
+        language: apiPatient.language,
+        latitude: apiPatient.latitude ?? 0,
+        longitude: apiPatient.longitude ?? 0,
+        screening: apiPatient.screenings[0]
+          ? {
+              depressionScore: apiPatient.screenings[0].depressionScore ?? 0,
+              riskLevel: (apiPatient.screenings[0].depressionRisk ?? "low") as RiskLevel,
+              transcript: apiPatient.screenings[0].transcript ?? "",
+              actionPlan: apiPatient.screenings[0].actionPlan ?? "",
+              biomarkers: (apiPatient.screenings[0].biomarkers ?? {}) as {
+                f0Mean: number;
+                jitter: number;
+                shimmer: number;
+                hnr: number;
+                pauseRatio: number;
+                speechRate: number;
+              },
+              createdAt: apiPatient.screenings[0].createdAt,
+            }
+          : null,
+      }
+    : {
+        name: mockPatient!.name,
+        phone: mockPatient!.phone,
+        language: mockPatient!.language,
+        latitude: mockPatient!.latitude,
+        longitude: mockPatient!.longitude,
+        screening: {
+          depressionScore: mockPatient!.lastScreening.depressionScore,
+          riskLevel: mockPatient!.lastScreening.riskLevel,
+          transcript: mockPatient!.lastScreening.transcript,
+          actionPlan: mockPatient!.lastScreening.actionPlan,
+          biomarkers: mockPatient!.lastScreening.biomarkers,
+          createdAt: mockPatient!.lastScreening.createdAt,
+        },
+      };
+
+  const s = patient.screening;
+  if (!s) return notFound();
+
   const risk = RISK_CONFIG[s.riskLevel];
 
   return (
