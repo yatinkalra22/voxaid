@@ -1,13 +1,19 @@
-import { Controller, Post, Req, Res, Logger } from '@nestjs/common';
+import { Controller, Post, Req, Res, Logger, Inject } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { Request, Response } from 'express';
-import { twiml, Twilio } from 'twilio';
+import { twiml } from 'twilio';
+import { Queue } from 'bullmq';
+import { TRANSCRIPTION_QUEUE } from '../queue/queue.module.js';
+import type { TranscriptionJobData } from '../whisper/whisper.processor.js';
 
 @Controller('twilio')
 export class TwilioController {
   private readonly logger = new Logger(TwilioController.name);
 
-  constructor(private readonly config: ConfigService) {}
+  constructor(
+    private readonly config: ConfigService,
+    @Inject(TRANSCRIPTION_QUEUE) private readonly transcriptionQueue: Queue,
+  ) {}
 
   /**
    * POST /twilio/voice — Twilio hits this when a call comes in.
@@ -55,16 +61,21 @@ export class TwilioController {
    * https://www.twilio.com/docs/voice/api/recording-resource
    */
   @Post('recording')
-  handleRecordingCallback(@Req() req: Request, @Res() res: Response) {
+  async handleRecordingCallback(@Req() req: Request, @Res() res: Response) {
     const { RecordingUrl, RecordingSid, CallSid, RecordingDuration } = req.body;
 
     this.logger.log(
       `Recording ready: sid=${RecordingSid} call=${CallSid} duration=${RecordingDuration}s`,
     );
-    this.logger.log(`Audio URL: ${RecordingUrl}.wav`);
+    const audioUrl = `${RecordingUrl}.wav`;
+    this.logger.log(`Audio URL: ${audioUrl}`);
 
-    // TODO (Feature 3): Push to BullMQ for Whisper transcription + R2 upload
-    // For now, just log — we'll wire the pipeline in later features
+    // Enqueue for async Whisper transcription
+    await this.transcriptionQueue.add('transcribe', {
+      audioUrl,
+      source: 'ivr',
+      callSid: CallSid,
+    } satisfies TranscriptionJobData);
 
     res.status(200).send('OK');
   }
@@ -75,7 +86,7 @@ export class TwilioController {
    * https://www.twilio.com/docs/whatsapp/api#receiving-messages
    */
   @Post('whatsapp')
-  handleWhatsAppMessage(@Req() req: Request, @Res() res: Response) {
+  async handleWhatsAppMessage(@Req() req: Request, @Res() res: Response) {
     const { From, Body, NumMedia, MediaUrl0, MediaContentType0 } = req.body;
 
     this.logger.log(`WhatsApp from ${From}: "${Body}" media=${NumMedia}`);
@@ -89,7 +100,13 @@ export class TwilioController {
     if (hasAudio) {
       this.logger.log(`Voice note received: ${MediaUrl0}`);
 
-      // TODO (Feature 3): Push MediaUrl0 to BullMQ for Whisper transcription
+      // Enqueue for async Whisper transcription
+      await this.transcriptionQueue.add('transcribe', {
+        audioUrl: MediaUrl0,
+        source: 'whatsapp',
+        from: From,
+      } satisfies TranscriptionJobData);
+
       response.message(
         'Thank you. We received your voice note and are analyzing it. You will receive your results shortly.',
       );
