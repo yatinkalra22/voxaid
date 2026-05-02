@@ -1,11 +1,16 @@
+import os
+import logging
+
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
-# Max upload: 10 MB — prevents OOM from oversized files
-MAX_UPLOAD_BYTES = 10 * 1024 * 1024
-
 from services.feature_extractor import extract_features, VoiceBiomarkers
 from services.classifier import classifier
+
+logger = logging.getLogger("voxaid-ml")
+
+# Max upload: 10 MB — prevents OOM from oversized files
+MAX_UPLOAD_BYTES = 10 * 1024 * 1024
 
 app = FastAPI(
     title="VoxAID ML",
@@ -14,8 +19,6 @@ app = FastAPI(
 )
 
 # Restrict CORS to the NestJS API server only
-import os
-
 _allowed_origins = os.getenv("CORS_ORIGINS", "http://localhost:3001").split(",")
 app.add_middleware(
     CORSMiddleware,
@@ -46,8 +49,9 @@ async def extract_voice_features(audio: UploadFile = File(...)):
     try:
         features = extract_features(contents)
     except Exception as e:
+        logger.exception("Feature extraction failed")
         raise HTTPException(
-            status_code=422, detail=f"Feature extraction failed: {str(e)}"
+            status_code=422, detail="Feature extraction failed — audio may be corrupt or too short"
         )
 
     return features
@@ -70,8 +74,9 @@ async def classify_depression(audio: UploadFile = File(...)):
         features = extract_features(contents)
         result = classifier.predict(features)
     except Exception as e:
+        logger.exception("Classification failed")
         raise HTTPException(
-            status_code=422, detail=f"Classification failed: {str(e)}"
+            status_code=422, detail="Classification failed — audio may be corrupt or too short"
         )
 
     return {

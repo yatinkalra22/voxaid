@@ -18,7 +18,7 @@ export function AnimatedScore({ score, riskLevel, riskColor }: AnimatedScoreProp
       duration: 1.2,
       ease: "easeOut",
     });
-    return controls.stop;
+    return () => controls.stop();
   }, [count, score]);
 
   return (

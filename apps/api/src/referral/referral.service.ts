@@ -31,7 +31,7 @@ export class ReferralService {
    * https://www.twilio.com/docs/messaging/api/message-resource
    */
   async referToClinic(input: ReferralInput): Promise<{ messageSid: string }> {
-    const fromNumber = this.config.get<string>('TWILIO_PHONE_NUMBER');
+    const fromNumber = this.config.getOrThrow<string>('TWILIO_PHONE_NUMBER');
 
     const body = [
       `[VoxAID REFERRAL - ${input.riskLevel.toUpperCase()}]`,
@@ -53,7 +53,7 @@ export class ReferralService {
 
     const message = await this.twilio.messages.create({
       to: input.clinicPhone,
-      from: fromNumber!,
+      from: fromNumber,
       body,
     });
 
@@ -70,11 +70,11 @@ export class ReferralService {
     patientName: string;
     clinicName: string;
   }): Promise<void> {
-    const fromNumber = this.config.get<string>('TWILIO_PHONE_NUMBER');
+    const fromNumber = this.config.getOrThrow<string>('TWILIO_PHONE_NUMBER');
 
     await this.twilio.messages.create({
       to: input.chwPhone,
-      from: fromNumber!,
+      from: fromNumber,
       body: `[VoxAID] Referral sent for ${input.patientName} to ${input.clinicName}. They will be contacted for an appointment.`,
     });
 

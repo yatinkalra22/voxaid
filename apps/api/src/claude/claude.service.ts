@@ -93,8 +93,9 @@ Respond with ONLY valid JSON, no markdown.`,
       ],
     });
 
+    const firstBlock = message.content[0];
     const text =
-      message.content[0].type === 'text' ? message.content[0].text : '';
+      firstBlock && firstBlock.type === 'text' ? firstBlock.text : '';
 
     try {
       const parsed = JSON.parse(text) as ActionPlanOutput;

@@ -1,6 +1,6 @@
 import { Global, Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { Queue, Worker } from 'bullmq';
+import { Queue } from 'bullmq';
 import IORedis from 'ioredis';
 
 export const TRANSCRIPTION_QUEUE = 'transcription';

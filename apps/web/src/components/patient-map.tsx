@@ -23,7 +23,7 @@ export function PatientMap({ patients }: { patients: MapPatient[] }) {
   const [tokenMissing, setTokenMissing] = useState(false);
 
   // Stabilize patients reference to avoid unnecessary map rebuilds
-  const stablePatients = useMemo(() => patients, [JSON.stringify(patients)]);
+  const stablePatients = useMemo(() => patients, [patients]);
 
   useEffect(() => {
     if (!mapContainer.current) return;
@@ -60,45 +60,49 @@ export function PatientMap({ patients }: { patients: MapPatient[] }) {
       el.style.boxShadow = "0 1px 3px rgba(0,0,0,0.3)";
       el.style.cursor = "pointer";
 
+      // Build popup with DOM API to prevent XSS from patient data
+      const popupEl = document.createElement("div");
+      popupEl.style.fontFamily = "system-ui";
+      popupEl.style.padding = "4px 0";
+
+      const nameEl = document.createElement("strong");
+      nameEl.style.cssText = "font-size:14px;color:#0f172a;";
+      nameEl.textContent = patient.name;
+      popupEl.appendChild(nameEl);
+
+      const phoneEl = document.createElement("div");
+      phoneEl.style.cssText = "font-size:12px;color:#64748b;margin-top:2px;";
+      phoneEl.textContent = patient.phone;
+      popupEl.appendChild(phoneEl);
+
+      const badgeRow = document.createElement("div");
+      badgeRow.style.cssText = "margin-top:8px;display:flex;align-items:center;gap:6px;";
+      const badge = document.createElement("span");
+      badge.style.cssText = `display:inline-block;padding:2px 8px;border-radius:9999px;font-size:11px;font-weight:600;color:${risk.color};background:${risk.color}15;`;
+      badge.textContent = patient.riskLevel;
+      badgeRow.appendChild(badge);
+      const scoreSpan = document.createElement("span");
+      scoreSpan.style.cssText = "font-size:13px;font-weight:700;font-variant-numeric:tabular-nums;";
+      scoreSpan.textContent = `${(patient.depressionScore * 100).toFixed(0)}%`;
+      badgeRow.appendChild(scoreSpan);
+      popupEl.appendChild(badgeRow);
+
+      const link = document.createElement("a");
+      link.href = `/dashboard/patient/${patient.id}`;
+      link.style.cssText = "display:block;margin-top:8px;font-size:12px;color:#0F766E;text-decoration:none;";
+      link.textContent = "View details \u2192";
+      popupEl.appendChild(link);
+
       const popup = new mapboxgl.Popup({
         offset: 12,
         closeButton: false,
         maxWidth: "240px",
-      }).setHTML(`
-        <div style="font-family: system-ui; padding: 4px 0;">
-          <strong style="font-size: 14px; color: #0f172a;">
-            ${patient.name}
-          </strong>
-          <div style="font-size: 12px; color: #64748b; margin-top: 2px;">
-            ${patient.phone}
-          </div>
-          <div style="margin-top: 8px; display: flex; align-items: center; gap: 6px;">
-            <span style="
-              display: inline-block;
-              padding: 2px 8px;
-              border-radius: 9999px;
-              font-size: 11px;
-              font-weight: 600;
-              color: ${risk.color};
-              background: ${risk.color}15;
-            ">
-              ${patient.riskLevel}
-            </span>
-            <span style="font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums;">
-              ${(patient.depressionScore * 100).toFixed(0)}%
-            </span>
-          </div>
-          <a href="/dashboard/patient/${patient.id}"
-             style="display: block; margin-top: 8px; font-size: 12px; color: #0F766E; text-decoration: none;">
-            View details &rarr;
-          </a>
-        </div>
-      `);
+      }).setDOMContent(popupEl);
 
       new mapboxgl.Marker(el)
         .setLngLat([patient.longitude, patient.latitude])
         .setPopup(popup)
-        .addTo(map.current!);
+        .addTo(map.current as mapboxgl.Map);
     });
 
     map.current.addControl(new mapboxgl.NavigationControl(), "top-right");

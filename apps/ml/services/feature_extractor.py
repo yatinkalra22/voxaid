@@ -14,6 +14,7 @@ References:
 """
 
 import io
+import math
 import numpy as np
 import librosa
 import parselmouth
@@ -44,6 +45,13 @@ class VoiceBiomarkers(BaseModel):
     mfcc_stds: list[float]
 
 
+def _safe_float(value, default: float = 0.0) -> float:
+    """Sanitize Praat output — replace NaN/infinity with a safe default."""
+    if value is None or math.isnan(value) or math.isinf(value):
+        return default
+    return float(value)
+
+
 def extract_features(audio_bytes: bytes, sr: int = 16000) -> VoiceBiomarkers:
     """
     Extract vocal biomarkers from raw audio bytes.
@@ -52,10 +60,14 @@ def extract_features(audio_bytes: bytes, sr: int = 16000) -> VoiceBiomarkers:
     # Load audio into numpy array
     y, sr = librosa.load(io.BytesIO(audio_bytes), sr=sr, mono=True)
 
+    if len(y) < sr * 0.5:
+        # Less than 0.5 seconds of audio — not enough for analysis
+        return _empty_biomarkers()
+
     # --- Parselmouth (Praat) for pitch + perturbation ---
     sound = parselmouth.Sound(y, sampling_frequency=sr)
 
-    # Pitch extraction with sensible defaults for speech
+    # Pitch extraction with sensible defaults for speech (75-500 Hz)
     # https://www.fon.hum.uva.nl/praat/manual/Sound__To_Pitch___.html
     pitch = call(sound, "To Pitch", 0.0, 75, 500)
     f0_values = pitch.selected_array["frequency"]
@@ -72,30 +84,40 @@ def extract_features(audio_bytes: bytes, sr: int = 16000) -> VoiceBiomarkers:
 
     # Jitter and shimmer via point process
     # https://www.fon.hum.uva.nl/praat/manual/Voice_2__Jitter.html
-    point_process = call(sound, "To PointProcess (periodic, cc)", 75, 500)
+    try:
+        point_process = call(sound, "To PointProcess (periodic, cc)", 75, 500)
 
-    jitter_local = call(
-        point_process, "Get jitter (local)", 0, 0, 0.0001, 0.02, 1.3
-    )
-    shimmer_local = call(
-        [sound, point_process], "Get shimmer (local)", 0, 0, 0.0001, 0.02, 1.3, 1.6
-    )
+        jitter_local = _safe_float(call(
+            point_process, "Get jitter (local)", 0, 0, 0.0001, 0.02, 1.3
+        ))
+        shimmer_local = _safe_float(call(
+            [sound, point_process], "Get shimmer (local)", 0, 0, 0.0001, 0.02, 1.3, 1.6
+        ))
 
-    # HNR (Harmonics-to-Noise Ratio)
-    harmonicity = call(sound, "To Harmonicity (cc)", 0.01, 75, 0.1, 1.0)
-    hnr_mean = call(harmonicity, "Get mean", 0, 0)
+        # HNR (Harmonics-to-Noise Ratio)
+        harmonicity = call(sound, "To Harmonicity (cc)", 0.01, 75, 0.1, 1.0)
+        hnr_mean = _safe_float(call(harmonicity, "Get mean", 0, 0))
+    except Exception:
+        # Praat can fail on edge-case audio — degrade gracefully
+        jitter_local = 0.0
+        shimmer_local = 0.0
+        hnr_mean = 0.0
 
     # --- Temporal: pause ratio ---
-    # Voiced vs total frames ratio
     total_frames = len(f0_values)
     voiced_frames = len(f0_voiced)
     pause_ratio = 1.0 - (voiced_frames / total_frames) if total_frames > 0 else 0.0
-    speech_rate = voiced_frames / (len(y) / sr) if len(y) > 0 else 0.0
+    duration_sec = len(y) / sr
+    speech_rate = min(voiced_frames / duration_sec, 300.0) if duration_sec > 0 else 0.0
 
     # --- Librosa: MFCCs ---
     mfccs = librosa.feature.mfcc(y=y, sr=sr, n_mfcc=13)
-    mfcc_means = np.mean(mfccs, axis=1).tolist()
-    mfcc_stds = np.std(mfccs, axis=1).tolist()
+    mfcc_means = np.mean(mfccs, axis=1).tolist()[:13]
+    mfcc_stds = np.std(mfccs, axis=1).tolist()[:13]
+
+    # Pad if somehow fewer than 13 (shouldn't happen with n_mfcc=13)
+    mfcc_means += [0.0] * (13 - len(mfcc_means))
+    mfcc_stds += [0.0] * (13 - len(mfcc_stds))
 
     return VoiceBiomarkers(
         f0_mean=f0_mean,

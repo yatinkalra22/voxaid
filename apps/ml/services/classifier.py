@@ -61,11 +61,14 @@ class DepressionClassifier:
 
     def _load_or_create_model(self):
         if os.path.exists(MODEL_PATH):
-            self.model = xgb.Booster()
-            self.model.load_model(MODEL_PATH)
-        else:
-            # No trained model yet — create a synthetic one for demo
-            self.model = self._train_synthetic_model()
+            try:
+                self.model = xgb.Booster()
+                self.model.load_model(MODEL_PATH)
+                return
+            except Exception:
+                # Corrupted model file — retrain
+                pass
+        self.model = self._train_synthetic_model()
 
     def _train_synthetic_model(self):
         """

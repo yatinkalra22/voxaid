@@ -23,6 +23,7 @@ async function bootstrap() {
 
   const port = process.env.PORT ?? 3001;
   await app.listen(port);
-  console.log(`VoxAID API running on http://localhost:${port}`);
+  const { Logger } = await import('@nestjs/common');
+  new Logger('Bootstrap').log(`VoxAID API running on port ${port}`);
 }
 bootstrap();

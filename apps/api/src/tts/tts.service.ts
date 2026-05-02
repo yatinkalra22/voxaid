@@ -61,12 +61,11 @@ export class TtsService {
     // For the demo, we use Twilio's <Say> with the action plan text
     // as a fallback. In production, we'd host the MP3 on R2 and use <Play>.
     // This avoids needing a public URL for the audio file during hackathon.
-    const baseUrl = this.config.get<string>('API_BASE_URL');
-    const fromNumber = this.config.get<string>('TWILIO_PHONE_NUMBER');
+    const fromNumber = this.config.getOrThrow<string>('TWILIO_PHONE_NUMBER');
 
     const call = await this.twilio.calls.create({
       to: input.patientPhone,
-      from: fromNumber!,
+      from: fromNumber,
       twiml: this.buildCallbackTwiml(input.text, input.language),
     });
 

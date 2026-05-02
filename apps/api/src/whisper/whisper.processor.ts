@@ -1,4 +1,4 @@
-import { Injectable, Logger, Inject, OnModuleInit } from '@nestjs/common';
+import { Injectable, Logger, Inject, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
 import { Worker, Job } from 'bullmq';
 import IORedis from 'ioredis';
 import { ConfigService } from '@nestjs/config';
@@ -20,9 +20,10 @@ export interface TranscriptionJobData {
  * Whisper ASR → ML biomarkers → Claude action plan → DB persist → TTS callback
  */
 @Injectable()
-export class WhisperProcessor implements OnModuleInit {
+export class WhisperProcessor implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(WhisperProcessor.name);
   private readonly mlServiceUrl: string;
+  private worker: Worker<TranscriptionJobData> | null = null;
 
   constructor(
     @Inject('REDIS_CONNECTION') private readonly redis: IORedis,
@@ -36,7 +37,7 @@ export class WhisperProcessor implements OnModuleInit {
   }
 
   onModuleInit() {
-    const worker = new Worker<TranscriptionJobData>(
+    this.worker = new Worker<TranscriptionJobData>(
       TRANSCRIPTION_QUEUE,
       async (job: Job<TranscriptionJobData>) => {
         this.logger.log(
@@ -110,7 +111,7 @@ export class WhisperProcessor implements OnModuleInit {
             this.logger.log(`Patient callback initiated: callSid=${callSid}`);
           } catch (err) {
             // Non-fatal — screening is already saved
-            this.logger.warn(`TTS callback failed: ${(err as Error).message}`);
+            this.logger.warn(`TTS callback failed: ${err instanceof Error ? err.message : String(err)}`);
           }
         }
 
@@ -122,11 +123,15 @@ export class WhisperProcessor implements OnModuleInit {
       },
     );
 
-    worker.on('failed', (job, err) => {
+    this.worker.on('failed', (job, err) => {
       this.logger.error(`Job ${job?.id} failed: ${err.message}`);
     });
 
     this.logger.log('Whisper worker started (full pipeline)');
+  }
+
+  async onModuleDestroy() {
+    await this.worker?.close();
   }
 
   /**
