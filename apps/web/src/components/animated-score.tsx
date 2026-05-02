@@ -9,7 +9,7 @@ interface AnimatedScoreProps {
   riskColor: string;
 }
 
-export function AnimatedScore({ score, riskColor }: AnimatedScoreProps) {
+export function AnimatedScore({ score }: AnimatedScoreProps) {
   const count = useMotionValue(0);
   const rounded = useTransform(count, (v) => `${Math.round(v)}%`);
 

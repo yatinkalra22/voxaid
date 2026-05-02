@@ -1,9 +1,18 @@
 import type { Metadata } from "next";
-import { PatientMap } from "@/components/patient-map";
+import dynamic from "next/dynamic";
 import type { MapPatient } from "@/components/patient-map";
 import { getPatients } from "@/lib/api";
 import { MOCK_PATIENTS } from "@/lib/mock-data";
 import type { RiskLevel } from "@/lib/mock-data";
+
+const PatientMap = dynamic(() => import("@/components/patient-map").then(m => m.PatientMap), {
+  ssr: false,
+  loading: () => (
+    <div className="w-full h-[calc(100vh-12rem)] rounded-2xl border border-slate-200 bg-slate-50 flex items-center justify-center">
+      <p className="text-sm text-slate-400">Loading map...</p>
+    </div>
+  ),
+});
 
 export const metadata: Metadata = {
   title: "Patient Map — VoxAID",
