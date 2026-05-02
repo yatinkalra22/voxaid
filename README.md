@@ -330,7 +330,7 @@ Set these env vars in the Vercel dashboard:
 | Root Directory | `apps/api` |
 | Runtime | **Node** |
 | Build Command | `pnpm install && npx prisma generate && pnpm build` |
-| Start Command | `node dist/main.js` |
+| Start Command | `node dist/src/main.js` |
 | Instance Type | **Free** |
 
 6. Click **Advanced** → **Add Environment Variable** and add each variable from `apps/api/.env`:
