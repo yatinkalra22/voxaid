@@ -134,6 +134,32 @@ const SEED_PATIENTS = [
       source: 'ivr',
     },
   },
+  {
+    id: 'p6',
+    name: 'Rekha Devi',
+    phone: '+91-8765432109',
+    language: 'hi',
+    latitude: 26.8467,
+    longitude: 80.9462, // Lucknow, UP
+    assignedChwId: 'chw-demo-1',
+    screening: {
+      depressionScore: 0.54,
+      depressionRisk: 'moderate' as const,
+      transcript:
+        'Thoda sa mann udaas rehta hai. Khana bana leti hoon, bachche ka dhyan rakh leti hoon. Par kabhi kabhi bahut akela lagta hai.',
+      actionPlan:
+        'Schedule follow-up screening in 2 weeks. Recommend peer support group at local Anganwadi centre. Monitor sleep and appetite patterns.',
+      biomarkers: {
+        f0Mean: 174.2,
+        jitter: 0.019,
+        shimmer: 0.051,
+        hnr: 14.6,
+        pauseRatio: 0.33,
+        speechRate: 92.8,
+      },
+      source: 'ivr',
+    },
+  },
 ];
 
 async function main() {

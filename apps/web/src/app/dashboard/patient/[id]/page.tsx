@@ -10,11 +10,12 @@ import {
   Activity,
   AlertTriangle,
   FileText,
-  Send,
 } from "lucide-react";
 import { getPatient } from "@/lib/api";
 import type { Biomarkers } from "@/lib/api";
 import { MOCK_PATIENTS, RISK_CONFIG } from "@/lib/mock-data";
+import { ReferralButton } from "@/components/referral-button";
+import { AnimatedScore } from "@/components/animated-score";
 import type { RiskLevel } from "@/lib/mock-data";
 
 const VALID_RISK_LEVELS = new Set<string>(["low", "moderate", "high", "critical"]);
@@ -153,12 +154,11 @@ export default async function PatientDetailPage({
                 {s.riskLevel}
               </div>
             </div>
-            <div className="text-center">
-              <div className="text-3xl font-bold tabular-nums text-slate-900">
-                {(s.depressionScore * 100).toFixed(0)}%
-              </div>
-              <div className="text-xs text-slate-500">Depression Score</div>
-            </div>
+            <AnimatedScore
+              score={s.depressionScore}
+              riskLevel={s.riskLevel}
+              riskColor={risk.color}
+            />
           </div>
         </div>
       </div>
@@ -242,24 +242,14 @@ export default async function PatientDetailPage({
           {s.actionPlan}
         </p>
 
-        {/* Refer to clinic CTA — wired in referral feature, disabled as placeholder for now */}
         <div className="mt-6 flex flex-col sm:flex-row gap-3">
-          <button
-            disabled
-            title="Referral integration coming soon"
-            className="inline-flex items-center justify-center gap-2 bg-primary-700 text-white font-medium px-5 py-2.5 rounded-xl hover:bg-primary-800 transition-colors shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <Send className="w-4 h-4" aria-hidden="true" />
-            Refer to Clinic
-          </button>
-          <button
-            disabled
-            title="Call integration coming soon"
-            className="inline-flex items-center justify-center gap-2 bg-white text-slate-700 font-medium px-5 py-2.5 rounded-xl border border-slate-200 hover:bg-slate-50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <Phone className="w-4 h-4" aria-hidden="true" />
-            Call Patient
-          </button>
+          <ReferralButton
+            patientName={patient.name}
+            patientPhone={patient.phone}
+            riskLevel={s.riskLevel}
+            depressionScore={s.depressionScore}
+            actionPlan={s.actionPlan}
+          />
         </div>
       </div>
     </div>
