@@ -1,6 +1,6 @@
-import { PrismaClient } from '../generated/prisma/index.js';
+import { PrismaClient } from '../generated/prisma/client.js';
 
-const prisma = new PrismaClient();
+const prisma = new PrismaClient({});
 
 // Demo patients matching the "Priya in Bihar" narrative + global reach
 const SEED_PATIENTS = [

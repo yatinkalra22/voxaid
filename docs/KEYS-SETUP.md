@@ -153,6 +153,98 @@ Copy the output and use it as `API_SECRET_KEY` in **both** `apps/web/.env.local`
 
 3. Keep the filled env files local only. Do not commit them.
 
+## 13. Deploy to Render (API + ML)
+
+Both backend services deploy to Render (free tier, no credit card).
+
+### Step A — Create the API service
+
+1. Go to [dashboard.render.com](https://dashboard.render.com).
+2. Click **+ New** (top right) → **Web Service**.
+3. Connect your GitHub account and select the `voxaid` repo.
+4. Fill in:
+
+| Setting | Value |
+|---|---|
+| Name | `voxaid-api` |
+| Region | Pick closest (e.g. Oregon) |
+| Branch | `main` |
+| Root Directory | `apps/api` |
+| Runtime | **Node** |
+| Build Command | `pnpm install && npx prisma generate && pnpm build` |
+| Start Command | `node dist/main.js` |
+| Instance Type | **Free** |
+
+5. Click **Advanced** → **Add Environment Variable** and add these **12 vars** (skip `API_PORT` — Render sets its own port automatically):
+
+| Variable | Value | Where to get it |
+|---|---|---|
+| `DATABASE_URL` | `postgresql://postgres.[ref]:[pw]@...pooler...:6543/postgres?pgbouncer=true` | Supabase Connect → ORMs tab |
+| `DIRECT_URL` | `postgresql://postgres.[ref]:[pw]@...:5432/postgres` | Same page, port 5432 |
+| `TWILIO_ACCOUNT_SID` | `AC...` | Twilio console dashboard |
+| `TWILIO_AUTH_TOKEN` | Your token | Twilio console dashboard |
+| `TWILIO_PHONE_NUMBER` | `+1...` | Twilio → Phone Numbers |
+| `GROQ_API_KEY` | `gsk_...` | console.groq.com/keys |
+| `ELEVENLABS_API_KEY` | Your key | elevenlabs.io → API Keys |
+| `UPSTASH_REDIS_URL` | `rediss://...` | console.upstash.com → Database details |
+| `API_BASE_URL` | `https://voxaid-api.onrender.com` | Your Render URL (shown after deploy) |
+| `ML_SERVICE_URL` | `https://voxaid-ml.onrender.com` | Your ML Render URL (after step B) |
+| `API_SECRET_KEY` | Random hex string | `openssl rand -hex 32` |
+| `CORS_ORIGINS` | `https://your-app.vercel.app` | Your Vercel URL (after web deploy) |
+
+6. Click **Deploy Web Service**.
+
+### Step B — Create the ML service
+
+1. Click **+ New** → **Web Service** again.
+2. Select the same `voxaid` repo.
+3. Fill in:
+
+| Setting | Value |
+|---|---|
+| Name | `voxaid-ml` |
+| Region | Same as API |
+| Branch | `main` |
+| Root Directory | `apps/ml` |
+| Runtime | **Python 3** |
+| Build Command | `pip install -r requirements.txt` |
+| Start Command | `uvicorn main:app --host 0.0.0.0 --port $PORT` |
+| Instance Type | **Free** |
+
+4. Add **1 env var**:
+
+| Variable | Value |
+|---|---|
+| `CORS_ORIGINS` | `https://voxaid-api.onrender.com` |
+
+5. Click **Deploy Web Service**.
+
+### Step C — Deploy web to Vercel
+
+1. Go to [vercel.com](https://vercel.com) and import the `voxaid` repo.
+2. Set **Root Directory** to `apps/web`.
+3. Add these **4 env vars** in the Vercel dashboard:
+
+| Variable | Value |
+|---|---|
+| `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | `pk_test_...` |
+| `CLERK_SECRET_KEY` | `sk_test_...` |
+| `API_URL` | `https://voxaid-api.onrender.com` |
+| `API_SECRET_KEY` | Same hex string as API service |
+
+4. Deploy.
+
+### Step D — Post-deploy
+
+1. Go back to Render API service → **Environment** → update `CORS_ORIGINS` to your actual Vercel URL.
+2. Go to Twilio console → your phone number → set webhooks:
+   - Voice: `https://voxaid-api.onrender.com/twilio/voice` (POST)
+   - WhatsApp: `https://voxaid-api.onrender.com/twilio/whatsapp` (POST)
+3. Verify:
+   - `https://voxaid-api.onrender.com/health` → `{ "status": "ok" }`
+   - `https://voxaid-ml.onrender.com/health` → `{ "status": "ok" }`
+   - Your Vercel URL → dashboard loads
+
 ## Quick checklist
 
 - Supabase: database URL

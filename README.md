@@ -314,49 +314,97 @@ cd apps/web && vercel --prod
 Set these env vars in the Vercel dashboard:
 `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY`, `API_URL`, `API_SECRET_KEY`
 
-### API (NestJS) + ML (FastAPI) → Render
+### API (NestJS) → Render
 
-Both backend services deploy to [Render](https://render.com) (free tier, no credit card required).
+1. Push your code to GitHub.
+2. Go to [dashboard.render.com](https://dashboard.render.com).
+3. Click **+ New** (top right) → **Web Service**.
+4. Connect your GitHub account and select the `voxaid` repo.
+5. Fill in these settings:
 
-1. Push your code to GitHub
-2. Go to [render.com](https://render.com) → **New** → **Web Service**
-3. Connect your GitHub repo and create two services:
-
-**API Service:**
 | Setting | Value |
 |---|---|
+| Name | `voxaid-api` |
+| Region | Pick closest to you (e.g. Oregon US West) |
+| Branch | `main` |
 | Root Directory | `apps/api` |
-| Build Command | `pnpm install && pnpm build` |
+| Runtime | **Node** |
+| Build Command | `pnpm install && npx prisma generate && pnpm build` |
 | Start Command | `node dist/main.js` |
-| Instance Type | Free |
+| Instance Type | **Free** |
 
-**ML Service:**
+6. Click **Advanced** → **Add Environment Variable** and add each variable from `apps/api/.env`:
+
+| Variable | Value |
+|---|---|
+| `DATABASE_URL` | Your Supabase pooler URL (port 6543) |
+| `DIRECT_URL` | Your Supabase direct URL (port 5432) |
+| `TWILIO_ACCOUNT_SID` | `AC...` |
+| `TWILIO_AUTH_TOKEN` | Your Twilio auth token |
+| `TWILIO_PHONE_NUMBER` | `+1...` |
+| `GROQ_API_KEY` | `gsk_...` |
+| `ELEVENLABS_API_KEY` | Your ElevenLabs key |
+| `UPSTASH_REDIS_URL` | `rediss://...` |
+| `API_BASE_URL` | `https://voxaid-api.onrender.com` |
+| `API_PORT` | `3001` |
+| `ML_SERVICE_URL` | `https://voxaid-ml.onrender.com` |
+| `API_SECRET_KEY` | Same key you generated with `openssl rand -hex 32` |
+| `CORS_ORIGINS` | `https://your-app.vercel.app` (update after Vercel deploy) |
+
+7. Click **Deploy Web Service**. Wait for the build to finish (~2-3 min).
+
+### ML (FastAPI) → Render
+
+1. Go to [dashboard.render.com](https://dashboard.render.com).
+2. Click **+ New** → **Web Service**.
+3. Select the same `voxaid` repo.
+4. Fill in these settings:
+
 | Setting | Value |
 |---|---|
+| Name | `voxaid-ml` |
+| Region | Same region as API |
+| Branch | `main` |
 | Root Directory | `apps/ml` |
+| Runtime | **Python 3** |
 | Build Command | `pip install -r requirements.txt` |
 | Start Command | `uvicorn main:app --host 0.0.0.0 --port $PORT` |
-| Instance Type | Free |
+| Instance Type | **Free** |
 
-4. Add all env vars from `.env.example` in each service's **Environment** tab
+5. Click **Advanced** → **Add Environment Variable**:
+
+| Variable | Value |
+|---|---|
+| `CORS_ORIGINS` | `https://voxaid-api.onrender.com` |
+
+6. Click **Deploy Web Service**. Wait for the build to finish (~3-5 min).
 
 ### Post-deploy checklist
 
-After all three services are live, update these values:
+After both Render services are live, you'll see their URLs on the dashboard (e.g. `https://voxaid-api.onrender.com`).
 
+**1. Update Vercel env vars** (after deploying web):
 ```
-# In Vercel (web) environment variables:
 API_URL=https://voxaid-api.onrender.com
+```
 
-# In Render (api) environment variables:
+**2. Update Render API env vars** with the actual URLs:
+```
 API_BASE_URL=https://voxaid-api.onrender.com
 ML_SERVICE_URL=https://voxaid-ml.onrender.com
 CORS_ORIGINS=https://your-app.vercel.app
-
-# In Twilio console → Phone Number settings:
-Voice webhook:    https://voxaid-api.onrender.com/twilio/voice
-WhatsApp webhook: https://voxaid-api.onrender.com/twilio/whatsapp
 ```
+
+**3. Set Twilio webhooks** (in Twilio console → Phone Numbers → your number):
+```
+Voice webhook (POST):    https://voxaid-api.onrender.com/twilio/voice
+WhatsApp webhook (POST): https://voxaid-api.onrender.com/twilio/whatsapp
+```
+
+**4. Verify everything works:**
+- Visit `https://voxaid-api.onrender.com/health` — should return `{ "status": "ok" }`
+- Visit `https://voxaid-ml.onrender.com/health` — should return `{ "status": "ok" }`
+- Visit your Vercel URL — dashboard should load with live data
 
 ---
 
