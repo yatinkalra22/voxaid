@@ -20,7 +20,7 @@ export default function DashboardLayout({
             >
               VoxAID
             </Link>
-            <nav aria-label="Dashboard navigation" className="hidden sm:flex items-center gap-1">
+            <nav aria-label="Dashboard navigation" className="flex items-center gap-1">
               <NavLink href="/dashboard" icon={Users} label="Patients" />
               <NavLink href="/dashboard/map" icon={Map} label="Map" />
             </nav>
