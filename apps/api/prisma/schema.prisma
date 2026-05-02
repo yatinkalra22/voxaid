@@ -1,0 +1,50 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Patient {
+  id          String      @id @default(cuid())
+  name        String
+  phone       String      @unique
+  language    String      @default("en")
+  latitude    Float?
+  longitude   Float?
+  assignedChwId String    @map("assigned_chw_id")
+  createdAt   DateTime    @default(now()) @map("created_at")
+  updatedAt   DateTime    @updatedAt @map("updated_at")
+  screenings  Screening[]
+
+  @@map("patients")
+}
+
+enum RiskLevel {
+  low
+  moderate
+  high
+  critical
+}
+
+model Screening {
+  id              String    @id @default(cuid())
+  patientId       String    @map("patient_id")
+  patient         Patient   @relation(fields: [patientId], references: [id])
+  audioUrl        String    @map("audio_url")
+  transcript      String?
+  language        String    @default("en")
+  depressionScore Float?    @map("depression_score")
+  depressionRisk  RiskLevel? @map("depression_risk")
+  biomarkers      Json?
+  actionPlan      String?   @map("action_plan")
+  source          String    @default("ivr") // ivr | whatsapp
+  callSid         String?   @map("call_sid")
+  createdAt       DateTime  @default(now()) @map("created_at")
+
+  @@index([patientId])
+  @@index([depressionRisk])
+  @@map("screenings")
+}
