@@ -1,7 +1,7 @@
 import { Controller, Post, Req, Res, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { Request, Response } from 'express';
-import { twiml } from 'twilio';
+import { twiml, Twilio } from 'twilio';
 
 @Controller('twilio')
 export class TwilioController {
@@ -67,5 +67,39 @@ export class TwilioController {
     // For now, just log — we'll wire the pipeline in later features
 
     res.status(200).send('OK');
+  }
+
+  /**
+   * POST /twilio/whatsapp — Twilio WhatsApp sandbox webhook.
+   * Handles incoming WhatsApp messages with voice notes (MediaUrl0).
+   * https://www.twilio.com/docs/whatsapp/api#receiving-messages
+   */
+  @Post('whatsapp')
+  handleWhatsAppMessage(@Req() req: Request, @Res() res: Response) {
+    const { From, Body, NumMedia, MediaUrl0, MediaContentType0 } = req.body;
+
+    this.logger.log(`WhatsApp from ${From}: "${Body}" media=${NumMedia}`);
+
+    const response = new twiml.MessagingResponse();
+
+    const hasAudio =
+      parseInt(NumMedia || '0', 10) > 0 &&
+      MediaContentType0?.startsWith('audio/');
+
+    if (hasAudio) {
+      this.logger.log(`Voice note received: ${MediaUrl0}`);
+
+      // TODO (Feature 3): Push MediaUrl0 to BullMQ for Whisper transcription
+      response.message(
+        'Thank you. We received your voice note and are analyzing it. You will receive your results shortly.',
+      );
+    } else {
+      response.message(
+        'Welcome to VoxAID. Please send a voice note (30 seconds) describing how you have been feeling over the past two weeks.',
+      );
+    }
+
+    res.type('text/xml');
+    res.send(response.toString());
   }
 }
