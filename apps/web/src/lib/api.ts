@@ -1,8 +1,8 @@
 // Server-side data fetching for Next.js server components
 // Uses the API rewrite (/api/*) which proxies to the NestJS backend
 
-// Server-only — these env vars are NOT exposed to the browser
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+// Server-only — no NEXT_PUBLIC_ prefix so it stays off the client bundle
+const API_BASE = process.env.API_URL || 'http://localhost:3001';
 const API_KEY = process.env.API_SECRET_KEY || '';
 
 interface ApiResponse<T> {
