@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import Anthropic from '@anthropic-ai/sdk';
+import OpenAI from 'openai';
 
 interface ActionPlanInput {
   patientName: string;
@@ -28,18 +29,33 @@ interface ActionPlanOutput {
 @Injectable()
 export class ClaudeService {
   private readonly logger = new Logger(ClaudeService.name);
-  private readonly client: Anthropic;
+  private readonly anthropic: Anthropic | null;
+  private readonly groq: OpenAI | null;
+  private readonly useAnthropic: boolean;
 
   constructor(private readonly config: ConfigService) {
-    this.client = new Anthropic({
-      apiKey: this.config.get<string>('ANTHROPIC_API_KEY'),
-    });
+    const anthropicKey = this.config.get<string>('ANTHROPIC_API_KEY');
+
+    if (anthropicKey) {
+      this.anthropic = new Anthropic({ apiKey: anthropicKey });
+      this.groq = null;
+      this.useAnthropic = true;
+      this.logger.log('LLM: using Anthropic Claude Sonnet');
+    } else {
+      // Fallback: Groq Llama 3.3 70B — free, no credit card needed
+      this.anthropic = null;
+      this.groq = new OpenAI({
+        apiKey: this.config.get<string>('GROQ_API_KEY'),
+        baseURL: 'https://api.groq.com/openai/v1',
+      });
+      this.useAnthropic = false;
+      this.logger.log('LLM: using Groq Llama 3.3 (free fallback)');
+    }
   }
 
   /**
    * Generate a localized action plan for a CHW based on screening results.
-   * Uses Claude Sonnet for cost efficiency + quality balance.
-   * https://docs.anthropic.com/en/docs/build-with-claude/text-generation
+   * Uses Anthropic Claude if ANTHROPIC_API_KEY is set, otherwise Groq Llama 3.3.
    */
   async generateActionPlan(input: ActionPlanInput): Promise<ActionPlanOutput> {
     const languageMap: Record<string, string> = {
@@ -59,13 +75,7 @@ export class ClaudeService {
       `Generating action plan for ${input.patientName} in ${lang} (risk: ${input.riskLevel})`,
     );
 
-    const message = await this.client.messages.create({
-      model: 'claude-sonnet-4-6',
-      max_tokens: 1024,
-      messages: [
-        {
-          role: 'user',
-          content: `You are a clinical decision support system for community health workers (CHWs) in low-resource settings. Generate a clear, actionable plan based on a voice-based depression screening.
+    const prompt = `Generate a clear, actionable plan based on a voice-based depression screening.
 
 PATIENT: ${input.patientName}
 LANGUAGE: ${lang}
@@ -82,28 +92,24 @@ VOICE BIOMARKERS:
 TRANSCRIPT (patient's own words):
 "${input.transcript}"
 
-Generate a JSON response with:
+Generate a JSON response with these exact keys:
 1. "actionPlan" — A 2-3 paragraph plan written IN ${lang} that a CHW with basic training can follow. Include specific next steps, timeline, and when to escalate. Use simple, non-clinical language.
 2. "summary" — A 1-sentence English summary for the dashboard.
 3. "urgency" — One of: "routine" (low risk), "soon" (moderate, follow up in 2 weeks), "urgent" (high, follow up in 3 days), "immediate" (critical, same-day referral).
 4. "recommendedActions" — Array of 3-5 specific actions in English for the CHW checklist.
 
-Respond with ONLY valid JSON, no markdown.`,
-        },
-      ],
-    });
+Respond with ONLY valid JSON, no markdown.`;
 
-    const firstBlock = message.content[0];
-    const text =
-      firstBlock && firstBlock.type === 'text' ? firstBlock.text : '';
+    const text = this.useAnthropic
+      ? await this.callAnthropic(prompt)
+      : await this.callGroq(prompt);
 
     try {
       const parsed = JSON.parse(text) as ActionPlanOutput;
       this.logger.log(`Action plan generated: urgency=${parsed.urgency}`);
       return parsed;
     } catch {
-      // Fallback if Claude doesn't return clean JSON
-      this.logger.warn('Failed to parse Claude response as JSON, using raw text');
+      this.logger.warn('Failed to parse LLM response as JSON, using raw text');
       return {
         actionPlan: text,
         summary: `${input.riskLevel} risk screening for ${input.patientName}`,
@@ -115,6 +121,32 @@ Respond with ONLY valid JSON, no markdown.`,
         ],
       };
     }
+  }
+
+  private async callAnthropic(prompt: string): Promise<string> {
+    const message = await this.anthropic!.messages.create({
+      model: 'claude-sonnet-4-6',
+      max_tokens: 1024,
+      messages: [{ role: 'user', content: prompt }],
+    });
+    const firstBlock = message.content[0];
+    return firstBlock && firstBlock.type === 'text' ? firstBlock.text : '';
+  }
+
+  private async callGroq(prompt: string): Promise<string> {
+    const message = await this.groq!.chat.completions.create({
+      model: 'llama-3.3-70b-versatile',
+      max_tokens: 1024,
+      response_format: { type: 'json_object' },
+      messages: [
+        {
+          role: 'system',
+          content: 'You are a clinical decision support system for community health workers. Always respond with valid JSON only.',
+        },
+        { role: 'user', content: prompt },
+      ],
+    });
+    return message.choices[0]?.message?.content ?? '';
   }
 
   private riskToUrgency(

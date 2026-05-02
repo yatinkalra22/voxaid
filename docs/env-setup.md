@@ -101,42 +101,31 @@ ngrok http 3001
 
 ---
 
-## 4. OpenAI (Whisper ASR)
+## 4. Groq (Whisper ASR — free)
 
 | Var | Where |
 |---|---|
-| `OPENAI_API_KEY` | `apps/api/.env` |
+| `GROQ_API_KEY` | `apps/api/.env` |
 
 **Steps:**
-1. Go to [platform.openai.com/api-keys](https://platform.openai.com/api-keys)
-2. Click "Create new secret key"
-3. Copy the key (starts with `sk-`)
+1. Go to [console.groq.com/keys](https://console.groq.com/keys)
+2. Sign in with Google or GitHub
+3. Click "Create API Key"
+4. Copy the key (starts with `gsk_`)
 
 ```
-OPENAI_API_KEY=sk-xxxxx
+GROQ_API_KEY=gsk_xxxxx
 ```
 
-**Cost:** $0.006/minute of audio. A 30-second screening = $0.003.
+**Cost:** Free. No credit card required. Uses Whisper large-v3.
 
 ---
 
-## 5. Anthropic (Claude LLM)
+## 5. LLM (Llama 3.3 70B via Groq — free)
 
-| Var | Where |
-|---|---|
-| `ANTHROPIC_API_KEY` | `apps/api/.env` |
+No extra key needed. The same `GROQ_API_KEY` from step 4 is used for both Whisper ASR and Llama 3.3 action plan generation.
 
-**Steps:**
-1. Go to [console.anthropic.com](https://console.anthropic.com)
-2. Sign up and add billing (pay-as-you-go)
-3. Go to **Settings > API Keys**
-4. Create a new key
-
-```
-ANTHROPIC_API_KEY=sk-ant-xxxxx
-```
-
-**Cost:** ~$0.002 per action plan generation (Claude Sonnet).
+**Cost:** Free. No credit card required.
 
 ---
 
@@ -210,22 +199,9 @@ UPSTASH_REDIS_URL=rediss://default:xxxxx@us1-xxxxx-xxxxx.upstash.io:6379
 
 ---
 
-## 9. Mapbox (Maps)
+## 9. Maps (Leaflet + OpenStreetMap — free, no key needed)
 
-| Var | Where |
-|---|---|
-| `NEXT_PUBLIC_MAPBOX_TOKEN` | `apps/web/.env.local` |
-
-**Steps:**
-1. Go to [account.mapbox.com](https://account.mapbox.com) and sign up
-2. Your default public token is shown on the dashboard
-3. Copy it (starts with `pk.eyJ`)
-
-```
-NEXT_PUBLIC_MAPBOX_TOKEN=pk.eyJxxxxx
-```
-
-**Tier:** Free (50K map loads/month) — more than enough.
+The patient map uses Leaflet with OpenStreetMap tiles. No API key, no account, no credit card required.
 
 ---
 
@@ -303,12 +279,11 @@ CORS_ORIGINS=https://voxaid.vercel.app,https://voxaid-api.up.onrender.com
 
 ## Summary: Which File Gets What
 
-### `apps/web/.env.local` (Next.js — 4 vars)
+### `apps/web/.env.local` (Next.js — 3 vars)
 
 ```
 NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_...
 CLERK_SECRET_KEY=sk_test_...
-NEXT_PUBLIC_MAPBOX_TOKEN=pk.eyJ...
 API_SECRET_KEY=<same-as-api>
 ```
 
@@ -320,8 +295,8 @@ DIRECT_URL=postgresql://...
 TWILIO_ACCOUNT_SID=AC...
 TWILIO_AUTH_TOKEN=...
 TWILIO_PHONE_NUMBER=+1...
-OPENAI_API_KEY=sk-...
-ANTHROPIC_API_KEY=sk-ant-...
+GROQ_API_KEY=gsk_...
+# ANTHROPIC_API_KEY not needed — LLM uses GROQ_API_KEY
 ELEVENLABS_API_KEY=...
 R2_ACCESS_KEY_ID=...
 R2_SECRET_ACCESS_KEY=...
@@ -350,11 +325,11 @@ CORS_ORIGINS=http://localhost:3001
 | Supabase | Free | $0 |
 | Clerk | Free | $0 |
 | Twilio | Free trial | $0 ($15 credit) |
-| OpenAI | Pay-as-you-go | ~$0.01 per test |
-| Anthropic | Pay-as-you-go | ~$0.01 per test |
+| Groq | Free | $0 |
+| Groq (LLM) | Free | $0 |
 | ElevenLabs | Free | $0 |
 | Cloudflare R2 | Free | $0 |
 | Upstash | Free | $0 |
-| Mapbox | Free | $0 |
+| Maps (Leaflet) | No signup | $0 |
 | Resend | Free | $0 |
-| **Total to start** | | **~$0** (need credit card for OpenAI + Anthropic) |
+| **Total to start** | | **$0** (no credit card needed for any service) |

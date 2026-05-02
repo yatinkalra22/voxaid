@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import mapboxgl from "mapbox-gl";
-import "mapbox-gl/dist/mapbox-gl.css";
+import L from "leaflet";
+import "leaflet/dist/leaflet.css";
 import { MapPin } from "lucide-react";
 import { RISK_CONFIG } from "@/lib/mock-data";
 import type { RiskLevel } from "@/lib/mock-data";
@@ -19,8 +19,8 @@ export interface MapPatient {
 
 export function PatientMap({ patients }: { patients: MapPatient[] }) {
   const mapContainer = useRef<HTMLDivElement>(null);
-  const map = useRef<mapboxgl.Map | null>(null);
-  const [tokenMissing, setTokenMissing] = useState(false);
+  const map = useRef<L.Map | null>(null);
+  const [mapReady, setMapReady] = useState(false);
 
   // Stabilize patients reference to avoid unnecessary map rebuilds
   const stablePatients = useMemo(() => patients, [patients]);
@@ -28,37 +28,32 @@ export function PatientMap({ patients }: { patients: MapPatient[] }) {
   useEffect(() => {
     if (!mapContainer.current) return;
 
-    const token = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
-    if (!token) {
-      setTokenMissing(true);
-      return;
-    }
-
-    mapboxgl.accessToken = token;
-
-    map.current = new mapboxgl.Map({
-      container: mapContainer.current,
-      style: "mapbox://styles/mapbox/light-v11",
-      center: [40, 10],
-      zoom: 1.5,
+    map.current = L.map(mapContainer.current, {
+      center: [10, 40],
+      zoom: 2,
+      zoomControl: false,
     });
+
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      attribution:
+        '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+      maxZoom: 19,
+    }).addTo(map.current);
+
+    L.control.zoom({ position: "topright" }).addTo(map.current);
 
     stablePatients.forEach((patient) => {
       const risk = RISK_CONFIG[patient.riskLevel];
       if (!risk) return;
 
-      const el = document.createElement("div");
-      el.className = "patient-marker";
-      el.setAttribute("role", "button");
-      el.setAttribute("aria-label", `${patient.name}, ${patient.riskLevel} risk`);
-      el.setAttribute("tabindex", "0");
-      el.style.width = "14px";
-      el.style.height = "14px";
-      el.style.borderRadius = "50%";
-      el.style.backgroundColor = risk.color;
-      el.style.border = "2px solid white";
-      el.style.boxShadow = "0 1px 3px rgba(0,0,0,0.3)";
-      el.style.cursor = "pointer";
+      const marker = L.circleMarker([patient.latitude, patient.longitude], {
+        radius: 7,
+        fillColor: risk.color,
+        color: "#ffffff",
+        weight: 2,
+        opacity: 1,
+        fillOpacity: 1,
+      }).addTo(map.current as L.Map);
 
       // Build popup with DOM API to prevent XSS from patient data
       const popupEl = document.createElement("div");
@@ -76,52 +71,40 @@ export function PatientMap({ patients }: { patients: MapPatient[] }) {
       popupEl.appendChild(phoneEl);
 
       const badgeRow = document.createElement("div");
-      badgeRow.style.cssText = "margin-top:8px;display:flex;align-items:center;gap:6px;";
+      badgeRow.style.cssText =
+        "margin-top:8px;display:flex;align-items:center;gap:6px;";
       const badge = document.createElement("span");
       badge.style.cssText = `display:inline-block;padding:2px 8px;border-radius:9999px;font-size:11px;font-weight:600;color:${risk.color};background:${risk.color}15;`;
       badge.textContent = patient.riskLevel;
       badgeRow.appendChild(badge);
       const scoreSpan = document.createElement("span");
-      scoreSpan.style.cssText = "font-size:13px;font-weight:700;font-variant-numeric:tabular-nums;";
+      scoreSpan.style.cssText =
+        "font-size:13px;font-weight:700;font-variant-numeric:tabular-nums;";
       scoreSpan.textContent = `${(patient.depressionScore * 100).toFixed(0)}%`;
       badgeRow.appendChild(scoreSpan);
       popupEl.appendChild(badgeRow);
 
       const link = document.createElement("a");
       link.href = `/dashboard/patient/${patient.id}`;
-      link.style.cssText = "display:block;margin-top:8px;font-size:12px;color:#0F766E;text-decoration:none;";
+      link.style.cssText =
+        "display:block;margin-top:8px;font-size:12px;color:#0F766E;text-decoration:none;";
       link.textContent = "View details \u2192";
       popupEl.appendChild(link);
 
-      const popup = new mapboxgl.Popup({
-        offset: 12,
+      marker.bindPopup(popupEl, {
         closeButton: false,
-        maxWidth: "240px",
-      }).setDOMContent(popupEl);
-
-      new mapboxgl.Marker(el)
-        .setLngLat([patient.longitude, patient.latitude])
-        .setPopup(popup)
-        .addTo(map.current as mapboxgl.Map);
+        maxWidth: 240,
+        offset: [0, -4],
+      });
     });
 
-    map.current.addControl(new mapboxgl.NavigationControl(), "top-right");
+    setMapReady(true);
 
     return () => {
       map.current?.remove();
+      map.current = null;
     };
   }, [stablePatients]);
-
-  if (tokenMissing) {
-    return (
-      <div className="flex flex-col items-center justify-center gap-3 w-full h-[calc(100vh-12rem)] rounded-2xl border border-slate-200 bg-slate-50">
-        <MapPin className="w-8 h-8 text-slate-400" aria-hidden="true" />
-        <p className="text-sm text-slate-500">
-          Map unavailable — Mapbox token not configured.
-        </p>
-      </div>
-    );
-  }
 
   return (
     <div

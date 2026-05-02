@@ -20,7 +20,7 @@ Patient (Feature Phone)
                     │                    │                     │
                     ▼                    ▼                     ▼
             ┌──────────┐      ┌──────────────┐      ┌──────────────┐
-            │  Whisper  │      │   FastAPI ML  │      │    Claude     │
+            │  Whisper  │      │   FastAPI ML  │      │   Llama 3.3   │
             │   (ASR)   │      │   (Render)   │      │   Sonnet      │
             │           │      │               │      │               │
             │ Transcribe│      │ Extract       │      │ Generate      │
@@ -55,7 +55,7 @@ Patient (Feature Phone)
   - `/` — Landing page (marketing, pitch site)
   - `/story` — "Priya in Bihar" narrative demo
   - `/dashboard` — Patient list with risk badges, stat cards
-  - `/dashboard/map` — Mapbox GL JS geographic view
+  - `/dashboard/map` — Leaflet + OpenStreetMap geographic view
   - `/dashboard/patient/[id]` — Detail view with transcript, biomarkers, action plan, referral
   - `/sign-in`, `/sign-up` — Clerk auth pages
 - **Design:** Inter + Sora fonts, teal-700 primary, mobile-first (360px)
@@ -65,8 +65,8 @@ Patient (Feature Phone)
 - **Modules:**
   - `TwilioModule` — IVR voice webhook + WhatsApp webhook + recording callback
   - `QueueModule` — BullMQ queue backed by Upstash Redis
-  - `WhisperModule` — OpenAI Whisper transcription service + BullMQ worker
-  - `ClaudeModule` — Anthropic Claude Sonnet action plan generation
+  - `WhisperModule` — Whisper large-v3 transcription via Groq + BullMQ worker
+  - `ClaudeModule` — Llama 3.3 70B action plan generation via Groq
   - `TtsModule` — ElevenLabs TTS + Twilio outbound call
   - `ReferralModule` — SMS referral to clinic + CHW notification
 - **Database:** Prisma ORM → Supabase Postgres
@@ -145,9 +145,9 @@ Screening
 | Redis | Upstash | Free (10K cmds/day) | $10/mo |
 | Auth | Clerk | Free (10K MAU) | $25/mo |
 | Voice | Twilio | ~$1 trial credit | $0.013/call |
-| ASR | OpenAI | Pay-per-use | $0.006/min |
-| LLM | Anthropic | Pay-per-use | $0.002/call |
+| ASR | Groq (Whisper) | Free | $0 |
+| LLM | Groq (Llama 3.3) | Free | $0 |
 | TTS | ElevenLabs | Free (10K chars/mo) | $0.01/call |
-| Maps | Mapbox | Free (50K loads/mo) | Free tier sufficient |
+| Maps | Leaflet + OpenStreetMap | Free (no key needed) | Free |
 | **Total (hackathon)** | | **~$0** | |
 | **Total (production)** | | | **~$100-150/mo** |

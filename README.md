@@ -6,7 +6,7 @@
 
 <p align="center">
   <img src="https://img.shields.io/badge/Whisper-ASR_99%2B_Languages-74aa9c?style=for-the-badge" alt="Whisper" />
-  <img src="https://img.shields.io/badge/Claude_Sonnet-Action_Plans-d97706?style=for-the-badge" alt="Claude" />
+  <img src="https://img.shields.io/badge/Llama_3.3-Action_Plans-d97706?style=for-the-badge" alt="Llama" />
   <img src="https://img.shields.io/badge/XGBoost-Depression_Classifier-306998?style=for-the-badge" alt="XGBoost" />
   <img src="https://img.shields.io/badge/Twilio-IVR_%2B_WhatsApp-f22f46?style=for-the-badge" alt="Twilio" />
   <img src="https://img.shields.io/badge/License-MIT-green?style=for-the-badge" alt="MIT License" />
@@ -66,7 +66,7 @@ A CHW hands a patient a basic phone and dials the VoxAID number. The patient spe
 1. **Transcribes** speech via Whisper in 99+ languages
 2. **Extracts vocal biomarkers** — jitter, shimmer, F0, HNR, pause ratio, MFCCs (32 features)
 3. **Classifies risk** for depression via XGBoost trained on DAIC-WOZ clinical literature
-4. **Generates an action plan** in the patient's language via Claude Sonnet
+4. **Generates an action plan** in the patient's language via Llama 3.3 70B
 5. **Calls the patient back** with next steps via ElevenLabs TTS
 6. **Flags the patient** on a CHW dashboard with one-click clinic referral via SMS
 
@@ -120,7 +120,7 @@ Patient (any phone)
 │                    NestJS API (Render)                │
 │                                                       │
 │  ┌─────────────┐  ┌──────────────┐  ┌─────────────┐ │
-│  │   Whisper    │  │  FastAPI ML  │  │   Claude     │ │
+│  │   Whisper    │  │  FastAPI ML  │  │   Llama 3.3  │ │
 │  │   ASR        │  │  librosa +   │  │   Sonnet     │ │
 │  │   99+ langs  │  │  Praat +     │  │   Action     │ │
 │  │              │  │  XGBoost     │  │   Plans      │ │
@@ -137,7 +137,7 @@ Patient (any phone)
 ┌──────────────────────────────────────────────────────┐
 │              CHW Dashboard (Next.js on Vercel)        │
 │                                                       │
-│  Patient list       Biomarker        Mapbox           │
+│  Patient list       Biomarker        Leaflet          │
 │  + risk badges      detail view      geographic view  │
 │                                                       │
 │  Animated risk      Transcript +     One-click        │
@@ -160,7 +160,7 @@ Patient (any phone)
 - **Patient list** with color-coded risk badges (critical / high / moderate / low)
 - **Biomarker detail view** with flagged abnormal values highlighted in red
 - **Transcript + AI action plan** for every screening
-- **Mapbox geographic view** — see all patients on a map by risk level
+- **Geographic view** — see all patients on an OpenStreetMap-powered map by risk level
 - **One-click clinic referral** — SMS sent to clinic admin with patient details and urgency
 - **Animated risk score** — Framer Motion reveal on patient detail page
 
@@ -182,13 +182,13 @@ Patient (any phone)
 | **API** | NestJS 11, TypeScript, Prisma ORM, Zod, BullMQ |
 | **ML** | Python 3.11, FastAPI, librosa, praat-parselmouth, XGBoost |
 | **Voice** | Twilio Programmable Voice + WhatsApp Sandbox |
-| **ASR** | OpenAI Whisper API (99+ languages) |
-| **LLM** | Anthropic Claude Sonnet 4.6 |
+| **ASR** | Whisper large-v3 via Groq (99+ languages, free) |
+| **LLM** | Anthropic Claude Sonnet / Llama 3.3 via Groq (free fallback) |
 | **TTS** | ElevenLabs Multilingual v2 |
 | **Database** | Supabase Postgres + Prisma ORM |
 | **Queue** | Upstash Redis + BullMQ |
 | **Auth** | Clerk |
-| **Maps** | Mapbox GL JS |
+| **Maps** | Leaflet + OpenStreetMap (free, no key) |
 | **Deploy** | Vercel (web) + Render (api + ml) |
 
 ---
@@ -200,10 +200,10 @@ Patient (any phone)
 | Component | Cost | Notes |
 |---|---|---|
 | Twilio voice (60s call) | $0.013 | India via Exotel: $0.005 |
-| Whisper API (60s audio) | $0.006 | Self-hosted: $0.001 |
+| Whisper via Groq (60s audio) | $0.00 | Free tier, no credit card |
 | Biomarker extraction | $0.0005 | CPU-only, negligible |
 | XGBoost inference | $0.0001 | Negligible |
-| Claude Sonnet | $0.002 | Haiku fallback: $0.0005 |
+| LLM (action plans) | $0.00 | Groq free; or Claude $0.002/call |
 | ElevenLabs TTS | $0.01 | Optional, Coqui fallback: free |
 | **Total** | **$0.03** | **At 1M/month: $25-30K** |
 
@@ -249,77 +249,114 @@ voxaid/
 
 ### Prerequisites
 
-- **Node.js 20+** and **pnpm 10+**
-- **Python 3.11+**
-- **Vercel CLI** — `npm i -g vercel`
-- **Render account** — [render.com](https://render.com) (free tier)
+| Tool | Version | Install |
+|---|---|---|
+| Node.js | 20+ | [nodejs.org](https://nodejs.org) or `nvm install 20` |
+| pnpm | 10+ | `npm i -g pnpm` |
+| Python | 3.11+ | [python.org](https://www.python.org/downloads/) |
 
-### Quick Start
+### Local Setup
 
 ```bash
-git clone <repo-url> && cd voxaid
+# Clone and install
+git clone https://github.com/yatinkalra22/voxaid.git
+cd voxaid
+pnpm setup              # installs deps, creates Python venv, copies .env files
 
-# 1. Install deps, create Python venv, copy .env files
-pnpm setup
-
-# 2. Configure environment
+# Configure environment
 cp .env.example .env.local
-# Fill in your keys (see Configuration below)
-
-# 3. Database setup
-pnpm db:migrate       # Run Prisma migrations
-pnpm db:seed          # Seed 6 demo patients
-
-# 4. Start all services
-pnpm dev:all          # Web :3000 | API :3001 | ML :8001
 ```
 
-### Configuration
+Open `.env.local` and fill in your API keys. See **[docs/KEYS-SETUP.md](docs/KEYS-SETUP.md)** for step-by-step instructions on where to get each key (all services have free tiers).
 
-VoxAID needs API keys from 9 services (all have free tiers). See **[docs/KEYS-SETUP.md](docs/KEYS-SETUP.md)** for step-by-step instructions on where to get each key.
+`pnpm setup` copies your env to three locations automatically:
 
-After running `pnpm setup`, fill in your keys in these 3 files:
-
-| File | What goes here |
+| File | Keys needed |
 |---|---|
 | `.env.local` | All keys (root reference) |
-| `apps/web/.env.local` | Clerk, Mapbox, `API_URL`, `API_SECRET_KEY` |
-| `apps/api/.env` | Twilio, OpenAI, Anthropic, ElevenLabs, Supabase, Upstash, R2, `API_SECRET_KEY` |
+| `apps/web/.env.local` | Clerk, `API_URL`, `API_SECRET_KEY` |
+| `apps/api/.env` | Twilio, Groq, ElevenLabs, Supabase, Upstash, R2, `API_SECRET_KEY` |
 
-Generate the shared API secret:
+Generate a shared API secret for secure web-to-API communication:
 
 ```bash
 openssl rand -hex 32
-# Paste as API_SECRET_KEY in both apps/web/.env.local and apps/api/.env
+# paste as API_SECRET_KEY in both apps/web/.env.local and apps/api/.env
 ```
 
-### Deployment
-
-**Web (Next.js) → Vercel:**
 ```bash
+# Database
+pnpm db:migrate         # run Prisma migrations
+pnpm db:seed            # seed 6 demo patients
+
+# Start all services
+pnpm dev:all
+```
+
+```
+Web       → http://localhost:3000
+API       → http://localhost:3001
+ML        → http://localhost:8001
+```
+
+---
+
+## Deployment
+
+### Web (Next.js) → Vercel
+
+```bash
+npm i -g vercel
 vercel login
 cd apps/web && vercel --prod
 ```
 
-**API (NestJS) + ML (FastAPI) → Render (free tier):**
+Set these env vars in the Vercel dashboard:
+`NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY`, `API_URL`, `API_SECRET_KEY`
+
+### API (NestJS) + ML (FastAPI) → Render
+
+Both backend services deploy to [Render](https://render.com) (free tier, no credit card required).
 
 1. Push your code to GitHub
 2. Go to [render.com](https://render.com) → **New** → **Web Service**
-3. Connect your GitHub repo
+3. Connect your GitHub repo and create two services:
 
-| Service | Root Directory | Build Command | Start Command |
-|---|---|---|---|
-| **API** | `apps/api` | `pnpm install && pnpm build` | `node dist/main.js` |
-| **ML** | `apps/ml` | `pip install -r requirements.txt` | `uvicorn main:app --host 0.0.0.0 --port $PORT` |
+**API Service:**
+| Setting | Value |
+|---|---|
+| Root Directory | `apps/api` |
+| Build Command | `pnpm install && pnpm build` |
+| Start Command | `node dist/main.js` |
+| Instance Type | Free |
 
-4. Add all env vars from `.env.example` in each service's **Environment** tab on Render
+**ML Service:**
+| Setting | Value |
+|---|---|
+| Root Directory | `apps/ml` |
+| Build Command | `pip install -r requirements.txt` |
+| Start Command | `uvicorn main:app --host 0.0.0.0 --port $PORT` |
+| Instance Type | Free |
 
-**Post-deploy:** Update these values with your actual Render URLs:
+4. Add all env vars from `.env.example` in each service's **Environment** tab
 
-- `API_URL` / `API_BASE_URL` → `https://voxaid-api.onrender.com`
-- `ML_SERVICE_URL` → `https://voxaid-ml.onrender.com`
-- `CORS_ORIGINS` → your Vercel web URL
-- Twilio webhook URLs → `https://<api-url>/twilio/voice` and `/twilio/whatsapp`
+### Post-deploy checklist
+
+After all three services are live, update these values:
+
+```
+# In Vercel (web) environment variables:
+API_URL=https://voxaid-api.onrender.com
+
+# In Render (api) environment variables:
+API_BASE_URL=https://voxaid-api.onrender.com
+ML_SERVICE_URL=https://voxaid-ml.onrender.com
+CORS_ORIGINS=https://your-app.vercel.app
+
+# In Twilio console → Phone Number settings:
+Voice webhook:    https://voxaid-api.onrender.com/twilio/voice
+WhatsApp webhook: https://voxaid-api.onrender.com/twilio/whatsapp
+```
 
 ---
 

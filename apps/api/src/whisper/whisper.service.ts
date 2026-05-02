@@ -8,15 +8,18 @@ export class WhisperService {
   private readonly openai: OpenAI;
 
   constructor(private readonly config: ConfigService) {
+    // Groq provides free Whisper API with OpenAI-compatible endpoint
+    // https://console.groq.com/docs/speech-text
     this.openai = new OpenAI({
-      apiKey: this.config.get<string>('OPENAI_API_KEY'),
+      apiKey: this.config.get<string>('GROQ_API_KEY'),
+      baseURL: 'https://api.groq.com/openai/v1',
     });
   }
 
   /**
    * Downloads audio from URL and sends to Whisper for transcription.
    * Returns transcript text + detected language.
-   * https://platform.openai.com/docs/guides/speech-to-text
+   * Uses Groq's hosted Whisper — free tier, same model.
    */
   async transcribe(audioUrl: string): Promise<{
     text: string;
@@ -40,7 +43,7 @@ export class WhisperService {
     this.logger.log(`Sending ${audioBuffer.length} bytes to Whisper`);
 
     const result = await this.openai.audio.transcriptions.create({
-      model: 'whisper-1',
+      model: 'whisper-large-v3',
       file,
       response_format: 'verbose_json', // Gives us detected language
     });

@@ -4,17 +4,28 @@ This guide shows where each key comes from and what to click in each provider.
 
 ## 1. Supabase database URL
 
+You need the **Postgres connection string**, not the API keys. The API Keys page (Publishable key, Secret key) is for the Supabase REST API — VoxAID doesn't use that. Prisma connects directly to the database.
+
 1. Go to [https://supabase.com/dashboard](https://supabase.com/dashboard) and sign in.
 2. Click **New Project**.
-3. Name it `voxaid` and pick a strong database password.
+3. Name it `voxaid` and pick a strong database password. **Save this password** — you'll need it in the connection string.
 4. Pick the closest region and click **Create new project**.
 5. Wait for the project to finish provisioning.
-6. In the left sidebar, click **Project Settings** (gear icon).
-7. Click **Database** under Configuration.
-8. Scroll to **Connection string** and select the **URI** tab.
-9. Copy the connection string and replace `[YOUR-PASSWORD]` with the password you chose.
+6. Click the green **Connect** button at the top of the dashboard.
+7. Select the **ORMs** tab and copy the URI shown there.
+8. Replace `[YOUR-PASSWORD]` with the database password you chose in step 3.
 
-Use it as both `DATABASE_URL` and `DIRECT_URL` in your env files.
+You need two URLs (same password, different ports):
+
+```
+# Connection pooler (port 6543) — used by your app at runtime
+DATABASE_URL=postgresql://postgres.[project-ref]:[YOUR-PASSWORD]@aws-0-us-east-1.pooler.supabase.co:6543/postgres?pgbouncer=true
+
+# Direct connection (port 5432) — used by Prisma migrations
+DIRECT_URL=postgresql://postgres.[project-ref]:[YOUR-PASSWORD]@aws-0-us-east-1.pooler.supabase.co:5432/postgres
+```
+
+Use these as `DATABASE_URL` and `DIRECT_URL` in `apps/api/.env`.
 
 ## 2. Clerk publishable key and secret key
 
@@ -46,29 +57,29 @@ Use these as `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` and `CLERK_SECRET_KEY`.
 
 Use these as `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, and `TWILIO_PHONE_NUMBER`.
 
-## 4. OpenAI API key (Whisper ASR)
+## 4. Groq API key (Whisper ASR — free)
 
-1. Go to [https://platform.openai.com/api-keys](https://platform.openai.com/api-keys) and sign in.
-2. Click **Create new secret key**.
-3. Name it `voxaid-whisper`.
-4. Copy the key (starts with `sk-`). You won't see it again.
+Groq provides free access to Whisper large-v3. No credit card required.
 
-Use it as `OPENAI_API_KEY`.
-
-## 5. Anthropic API key (Claude action plans)
-
-1. Go to [https://console.anthropic.com/settings/keys](https://console.anthropic.com/settings/keys) and sign in.
-2. Click **Create Key**.
+1. Go to [https://console.groq.com/keys](https://console.groq.com/keys) and sign in (Google or GitHub login).
+2. Click **Create API Key**.
 3. Name it `voxaid`.
-4. Copy the key (starts with `sk-ant-`).
+4. Copy the key (starts with `gsk_`).
 
-Use it as `ANTHROPIC_API_KEY`.
+Use it as `GROQ_API_KEY`.
+
+## 5. LLM (Llama 3.3 70B via Groq — free)
+
+No extra key needed. The same `GROQ_API_KEY` from step 4 powers both Whisper ASR and Llama 3.3 action plan generation. Skip this step.
 
 ## 6. ElevenLabs API key (TTS callbacks)
 
-1. Go to [https://elevenlabs.io](https://elevenlabs.io) and sign in.
-2. Click your profile icon in the bottom-left → **Profile + API key**.
-3. Copy the API key shown there.
+1. Go to [https://elevenlabs.io/app/api/api-keys](https://elevenlabs.io/app/api/api-keys) and sign in.
+2. Click **+ Create Key**.
+3. Set Name to `voxaid`.
+4. Leave **Restrict Key** OFF.
+5. Make sure **Text to Speech** is set to **Access** (the rest don't matter).
+6. Click **Create Key** and copy the key.
 
 Use it as `ELEVENLABS_API_KEY`.
 
@@ -83,12 +94,9 @@ Use it as `ELEVENLABS_API_KEY`.
 
 Use it as `UPSTASH_REDIS_URL`.
 
-## 8. Mapbox access token (patient map)
+## 8. Maps (Leaflet + OpenStreetMap — no key needed)
 
-1. Go to [https://account.mapbox.com/access-tokens](https://account.mapbox.com/access-tokens) and sign in.
-2. Copy the **Default public token** (starts with `pk.eyJ`).
-
-Use it as `NEXT_PUBLIC_MAPBOX_TOKEN`.
+The patient map uses Leaflet with free OpenStreetMap tiles. No API key, no account, no credit card required. Skip this step.
 
 ## 9. Cloudflare R2 (audio storage, optional)
 
@@ -103,7 +111,26 @@ Use it as `NEXT_PUBLIC_MAPBOX_TOKEN`.
 
 Use these as `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET_NAME` (`voxaid-audio`), and `R2_ENDPOINT` (`https://<account-id>.r2.cloudflarestorage.com`).
 
-## 10. API secret key
+## 10. API config (no signup needed)
+
+These tell the NestJS API where to find itself and the ML service. Use the defaults for local development — only change them when deploying to Render.
+
+```
+# Local (default — no changes needed)
+API_BASE_URL=http://localhost:3001
+API_PORT=3001
+ML_SERVICE_URL=http://localhost:8001
+
+# Production (set these in Render environment variables)
+API_BASE_URL=https://voxaid-api.onrender.com
+ML_SERVICE_URL=https://voxaid-ml.onrender.com
+```
+
+- `API_BASE_URL` — The public URL of your API. Twilio sends webhook callbacks to this URL.
+- `API_PORT` — Which port NestJS listens on. Always `3001`.
+- `ML_SERVICE_URL` — Where the API sends audio for biomarker extraction + XGBoost classification.
+
+## 11. API secret key
 
 Generate a shared secret that secures communication between Next.js and NestJS:
 
@@ -113,7 +140,7 @@ openssl rand -hex 32
 
 Copy the output and use it as `API_SECRET_KEY` in **both** `apps/web/.env.local` and `apps/api/.env`.
 
-## 11. Put the values in your env files
+## 12. Put the values in your env files
 
 1. Run `pnpm setup` — this copies `.env.example` to three locations.
 2. Fill in each key in all 3 env files:
@@ -121,8 +148,8 @@ Copy the output and use it as `API_SECRET_KEY` in **both** `apps/web/.env.local`
 | File | Needs |
 |---|---|
 | `.env.local` | All keys (root reference) |
-| `apps/web/.env.local` | `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY`, `NEXT_PUBLIC_MAPBOX_TOKEN`, `API_URL`, `API_SECRET_KEY` |
-| `apps/api/.env` | All backend keys (Twilio, OpenAI, Anthropic, ElevenLabs, Supabase, Upstash, R2, `API_SECRET_KEY`) |
+| `apps/web/.env.local` | `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY`, `API_URL`, `API_SECRET_KEY` |
+| `apps/api/.env` | All backend keys (Twilio, Groq, ElevenLabs, Supabase, Upstash, R2, `API_SECRET_KEY`) |
 
 3. Keep the filled env files local only. Do not commit them.
 
@@ -131,10 +158,10 @@ Copy the output and use it as `API_SECRET_KEY` in **both** `apps/web/.env.local`
 - Supabase: database URL
 - Clerk: publishable key + secret key
 - Twilio: account SID + auth token + phone number
-- OpenAI: API key
-- Anthropic: API key
+- Groq: API key (free Whisper)
+- LLM: same Groq key (no extra key)
 - ElevenLabs: API key
 - Upstash: Redis URL
-- Mapbox: access token
+- Maps: Leaflet + OpenStreetMap (no key needed)
 - Cloudflare R2: access key + secret + bucket + endpoint (optional)
 - API secret: random hex string

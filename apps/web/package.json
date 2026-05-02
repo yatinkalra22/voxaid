@@ -14,8 +14,8 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "framer-motion": "^12.38.0",
+    "leaflet": "^1.9.4",
     "lucide-react": "^1.14.0",
-    "mapbox-gl": "^3.23.0",
     "next": "14.2.35",
     "react": "^18",
     "react-dom": "^18",
@@ -25,7 +25,7 @@
   },
   "devDependencies": {
     "@tailwindcss/typography": "^0.5.19",
-    "@types/mapbox-gl": "^3.5.0",
+    "@types/leaflet": "^1.9.21",
     "@types/node": "^20",
     "@types/react": "^18",
     "@types/react-dom": "^18",
