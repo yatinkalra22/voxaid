@@ -1,6 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
+import Link from "next/link";
 import {
   Phone,
   Activity,
@@ -58,16 +59,16 @@ export default function Home() {
           <div className="flex items-center gap-4">
             <a
               href="#how-it-works"
-              className="text-sm font-medium text-slate-600 hover:text-primary-700 transition-colors"
+              className="text-sm font-medium text-slate-600 hover:text-primary-700 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 focus-visible:ring-offset-2 rounded"
             >
               How it works
             </a>
-            <a
+            <Link
               href="/story"
-              className="text-sm font-medium text-slate-600 hover:text-primary-700 transition-colors"
+              className="text-sm font-medium text-slate-600 hover:text-primary-700 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 focus-visible:ring-offset-2 rounded"
             >
               Priya&apos;s Story
-            </a>
+            </Link>
           </div>
         </div>
       </nav>
@@ -81,7 +82,7 @@ export default function Home() {
             transition={{ duration: 0.5 }}
           >
             <div className="inline-flex items-center gap-2 bg-primary-50 text-primary-700 text-sm font-medium px-4 py-1.5 rounded-full mb-6">
-              <Shield className="w-4 h-4" />
+              <Shield className="w-4 h-4" aria-hidden="true" />
               SDG 3 — Good Health & Well-being
             </div>
 
@@ -102,14 +103,14 @@ export default function Home() {
                 className="inline-flex items-center justify-center gap-2 bg-primary-700 text-white font-medium px-6 py-3 rounded-xl hover:bg-primary-800 transition-colors shadow-md"
               >
                 See how it works
-                <ArrowRight className="w-4 h-4" />
+                <ArrowRight className="w-4 h-4" aria-hidden="true" />
               </a>
-              <a
+              <Link
                 href="/story"
-                className="inline-flex items-center justify-center gap-2 bg-white text-slate-700 font-medium px-6 py-3 rounded-xl border border-slate-200 hover:bg-slate-50 transition-colors"
+                className="inline-flex items-center justify-center gap-2 bg-white text-slate-700 font-medium px-6 py-3 rounded-xl border border-slate-200 hover:bg-slate-50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 focus-visible:ring-offset-2"
               >
                 Read Priya&apos;s Story
-              </a>
+              </Link>
             </div>
           </motion.div>
         </div>

@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { UserButton } from "@clerk/nextjs";
 import { Activity, Users, Map } from "lucide-react";
 import Link from "next/link";
@@ -19,7 +20,7 @@ export default function DashboardLayout({
             >
               VoxAID
             </Link>
-            <nav className="hidden sm:flex items-center gap-1">
+            <nav aria-label="Dashboard navigation" className="hidden sm:flex items-center gap-1">
               <NavLink href="/dashboard" icon={Users} label="Patients" />
               <NavLink href="/dashboard/map" icon={Map} label="Map" />
             </nav>
@@ -35,7 +36,9 @@ export default function DashboardLayout({
       </header>
 
       {/* Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 py-6">{children}</main>
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
+        <Suspense>{children}</Suspense>
+      </main>
     </div>
   );
 }
@@ -52,7 +55,7 @@ function NavLink({
   return (
     <Link
       href={href}
-      className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium text-slate-600 hover:text-primary-700 hover:bg-primary-50 transition-colors"
+      className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium text-slate-600 hover:text-primary-700 hover:bg-primary-50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 focus-visible:ring-offset-2"
     >
       <Icon className="w-4 h-4" />
       {label}

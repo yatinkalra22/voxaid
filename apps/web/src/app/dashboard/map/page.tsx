@@ -1,8 +1,13 @@
+import type { Metadata } from "next";
 import { PatientMap } from "@/components/patient-map";
 import type { MapPatient } from "@/components/patient-map";
 import { getPatients } from "@/lib/api";
 import { MOCK_PATIENTS } from "@/lib/mock-data";
 import type { RiskLevel } from "@/lib/mock-data";
+
+export const metadata: Metadata = {
+  title: "Patient Map — VoxAID",
+};
 
 export default async function MapPage() {
   const apiPatients = await getPatients();

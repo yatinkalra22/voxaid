@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import {
@@ -12,8 +13,48 @@ import {
   Send,
 } from "lucide-react";
 import { getPatient } from "@/lib/api";
+import type { Biomarkers } from "@/lib/api";
 import { MOCK_PATIENTS, RISK_CONFIG } from "@/lib/mock-data";
 import type { RiskLevel } from "@/lib/mock-data";
+
+const VALID_RISK_LEVELS = new Set<string>(["low", "moderate", "high", "critical"]);
+
+function toRiskLevel(value: string | null | undefined): RiskLevel {
+  return VALID_RISK_LEVELS.has(value ?? "") ? (value as RiskLevel) : "low";
+}
+
+const DEFAULT_BIOMARKERS: Biomarkers = {
+  f0Mean: 0,
+  jitter: 0,
+  shimmer: 0,
+  hnr: 0,
+  pauseRatio: 0,
+  speechRate: 0,
+};
+
+function toBiomarkers(raw: unknown): Biomarkers {
+  if (!raw || typeof raw !== "object") return DEFAULT_BIOMARKERS;
+  const obj = raw as Record<string, unknown>;
+  return {
+    f0Mean: typeof obj.f0Mean === "number" ? obj.f0Mean : 0,
+    jitter: typeof obj.jitter === "number" ? obj.jitter : 0,
+    shimmer: typeof obj.shimmer === "number" ? obj.shimmer : 0,
+    hnr: typeof obj.hnr === "number" ? obj.hnr : 0,
+    pauseRatio: typeof obj.pauseRatio === "number" ? obj.pauseRatio : 0,
+    speechRate: typeof obj.speechRate === "number" ? obj.speechRate : 0,
+  };
+}
+
+export async function generateMetadata({
+  params,
+}: {
+  params: { id: string };
+}): Promise<Metadata> {
+  const patient = await getPatient(params.id);
+  const mock = MOCK_PATIENTS.find((p) => p.id === params.id);
+  const name = patient?.name ?? mock?.name ?? "Patient";
+  return { title: `${name} — VoxAID` };
+}
 
 export default async function PatientDetailPage({
   params,
@@ -26,7 +67,7 @@ export default async function PatientDetailPage({
 
   if (!apiPatient && !mockPatient) return notFound();
 
-  // Normalize to common shape
+  // Normalize to common shape with safe type coercion
   const patient = apiPatient
     ? {
         name: apiPatient.name,
@@ -37,17 +78,10 @@ export default async function PatientDetailPage({
         screening: apiPatient.screenings[0]
           ? {
               depressionScore: apiPatient.screenings[0].depressionScore ?? 0,
-              riskLevel: (apiPatient.screenings[0].depressionRisk ?? "low") as RiskLevel,
+              riskLevel: toRiskLevel(apiPatient.screenings[0].depressionRisk),
               transcript: apiPatient.screenings[0].transcript ?? "",
               actionPlan: apiPatient.screenings[0].actionPlan ?? "",
-              biomarkers: (apiPatient.screenings[0].biomarkers ?? {}) as {
-                f0Mean: number;
-                jitter: number;
-                shimmer: number;
-                hnr: number;
-                pauseRatio: number;
-                speechRate: number;
-              },
+              biomarkers: toBiomarkers(apiPatient.screenings[0].biomarkers),
               createdAt: apiPatient.screenings[0].createdAt,
             }
           : null,
@@ -208,14 +242,22 @@ export default async function PatientDetailPage({
           {s.actionPlan}
         </p>
 
-        {/* Refer to clinic CTA */}
+        {/* Refer to clinic CTA — wired in referral feature, disabled as placeholder for now */}
         <div className="mt-6 flex flex-col sm:flex-row gap-3">
-          <button className="inline-flex items-center justify-center gap-2 bg-primary-700 text-white font-medium px-5 py-2.5 rounded-xl hover:bg-primary-800 transition-colors shadow-sm">
-            <Send className="w-4 h-4" />
+          <button
+            disabled
+            title="Referral integration coming soon"
+            className="inline-flex items-center justify-center gap-2 bg-primary-700 text-white font-medium px-5 py-2.5 rounded-xl hover:bg-primary-800 transition-colors shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <Send className="w-4 h-4" aria-hidden="true" />
             Refer to Clinic
           </button>
-          <button className="inline-flex items-center justify-center gap-2 bg-white text-slate-700 font-medium px-5 py-2.5 rounded-xl border border-slate-200 hover:bg-slate-50 transition-colors">
-            <Phone className="w-4 h-4" />
+          <button
+            disabled
+            title="Call integration coming soon"
+            className="inline-flex items-center justify-center gap-2 bg-white text-slate-700 font-medium px-5 py-2.5 rounded-xl border border-slate-200 hover:bg-slate-50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <Phone className="w-4 h-4" aria-hidden="true" />
             Call Patient
           </button>
         </div>

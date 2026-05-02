@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
+import { MapPin } from "lucide-react";
 import { RISK_CONFIG } from "@/lib/mock-data";
 import type { RiskLevel } from "@/lib/mock-data";
 
@@ -19,13 +20,17 @@ export interface MapPatient {
 export function PatientMap({ patients }: { patients: MapPatient[] }) {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
+  const [tokenMissing, setTokenMissing] = useState(false);
+
+  // Stabilize patients reference to avoid unnecessary map rebuilds
+  const stablePatients = useMemo(() => patients, [JSON.stringify(patients)]);
 
   useEffect(() => {
     if (!mapContainer.current) return;
 
     const token = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
     if (!token) {
-      console.warn("NEXT_PUBLIC_MAPBOX_TOKEN not set — map disabled");
+      setTokenMissing(true);
       return;
     }
 
@@ -38,11 +43,15 @@ export function PatientMap({ patients }: { patients: MapPatient[] }) {
       zoom: 1.5,
     });
 
-    patients.forEach((patient) => {
+    stablePatients.forEach((patient) => {
       const risk = RISK_CONFIG[patient.riskLevel];
+      if (!risk) return;
 
       const el = document.createElement("div");
       el.className = "patient-marker";
+      el.setAttribute("role", "button");
+      el.setAttribute("aria-label", `${patient.name}, ${patient.riskLevel} risk`);
+      el.setAttribute("tabindex", "0");
       el.style.width = "14px";
       el.style.height = "14px";
       el.style.borderRadius = "50%";
@@ -57,9 +66,9 @@ export function PatientMap({ patients }: { patients: MapPatient[] }) {
         maxWidth: "240px",
       }).setHTML(`
         <div style="font-family: system-ui; padding: 4px 0;">
-          <div style="font-weight: 600; font-size: 14px; color: #0f172a;">
+          <strong style="font-size: 14px; color: #0f172a;">
             ${patient.name}
-          </div>
+          </strong>
           <div style="font-size: 12px; color: #64748b; margin-top: 2px;">
             ${patient.phone}
           </div>
@@ -97,11 +106,24 @@ export function PatientMap({ patients }: { patients: MapPatient[] }) {
     return () => {
       map.current?.remove();
     };
-  }, [patients]);
+  }, [stablePatients]);
+
+  if (tokenMissing) {
+    return (
+      <div className="flex flex-col items-center justify-center gap-3 w-full h-[calc(100vh-12rem)] rounded-2xl border border-slate-200 bg-slate-50">
+        <MapPin className="w-8 h-8 text-slate-400" aria-hidden="true" />
+        <p className="text-sm text-slate-500">
+          Map unavailable — Mapbox token not configured.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div
       ref={mapContainer}
+      role="region"
+      aria-label="Patient location map"
       className="w-full h-[calc(100vh-12rem)] rounded-2xl border border-slate-200 shadow-sm overflow-hidden"
     />
   );

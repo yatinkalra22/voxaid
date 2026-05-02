@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import {
   AlertTriangle,
   Phone,
@@ -10,6 +11,16 @@ import { getPatients } from "@/lib/api";
 import { MOCK_PATIENTS, RISK_CONFIG } from "@/lib/mock-data";
 import type { RiskLevel } from "@/lib/mock-data";
 
+export const metadata: Metadata = {
+  title: "Dashboard — VoxAID",
+};
+
+const VALID_RISK_LEVELS = new Set<string>(["low", "moderate", "high", "critical"]);
+
+function toRiskLevel(value: string | null | undefined): RiskLevel {
+  return VALID_RISK_LEVELS.has(value ?? "") ? (value as RiskLevel) : "low";
+}
+
 export default async function DashboardPage() {
   const apiPatients = await getPatients();
 
@@ -20,12 +31,11 @@ export default async function DashboardPage() {
   const patients = useApi
     ? apiPatients.map((p) => {
         const s = p.screenings[0];
-        const biomarkers = (s?.biomarkers ?? {}) as Record<string, number>;
         return {
           id: p.id,
           name: p.name,
           phone: p.phone,
-          riskLevel: (s?.depressionRisk ?? "low") as RiskLevel,
+          riskLevel: toRiskLevel(s?.depressionRisk),
           depressionScore: s?.depressionScore ?? 0,
         };
       })
@@ -96,7 +106,7 @@ export default async function DashboardPage() {
                 <Link
                   key={patient.id}
                   href={`/dashboard/patient/${patient.id}`}
-                  className="flex items-center justify-between px-4 sm:px-6 py-4 hover:bg-slate-50 transition-colors"
+                  className="flex items-center justify-between px-4 sm:px-6 py-4 hover:bg-slate-50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-teal-500"
                 >
                   <div className="flex items-center gap-4 min-w-0">
                     <div
