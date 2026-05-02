@@ -2,6 +2,7 @@ from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
 from services.feature_extractor import extract_features, VoiceBiomarkers
+from services.classifier import classifier
 
 app = FastAPI(
     title="VoxAID ML",
@@ -42,3 +43,28 @@ async def extract_voice_features(audio: UploadFile = File(...)):
         )
 
     return features
+
+
+@app.post("/classify")
+async def classify_depression(audio: UploadFile = File(...)):
+    """
+    Full pipeline: audio -> features -> depression risk score.
+    Single endpoint for the NestJS API to call.
+    """
+    contents = await audio.read()
+
+    if len(contents) < 1000:
+        raise HTTPException(status_code=400, detail="Audio file too small")
+
+    try:
+        features = extract_features(contents)
+        result = classifier.predict(features)
+    except Exception as e:
+        raise HTTPException(
+            status_code=422, detail=f"Classification failed: {str(e)}"
+        )
+
+    return {
+        "biomarkers": features.model_dump(),
+        **result,
+    }
