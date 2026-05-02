@@ -249,28 +249,70 @@ voxaid/
 
 ### Prerequisites
 
-- Node.js 20+ and pnpm 10+
-- Python 3.11+
-- API keys: Twilio, OpenAI, Anthropic, ElevenLabs, Supabase, Clerk, Mapbox, Upstash
+- **Node.js 20+** and **pnpm 10+**
+- **Python 3.11+**
+- **Vercel CLI** — `npm i -g vercel`
+- **Railway CLI** — `npm i -g @railway/cli`
 
 ### Quick Start
 
 ```bash
 git clone <repo-url> && cd voxaid
-pnpm setup            # Install deps, create Python venv, copy .env
-# Edit .env.local with your API keys (see .env.example)
+
+# 1. Install deps, create Python venv, copy .env files
+pnpm setup
+
+# 2. Configure environment
+cp .env.example .env.local
+# Fill in your keys (see Configuration below)
+
+# 3. Database setup
 pnpm db:migrate       # Run Prisma migrations
-pnpm db:seed          # Seed demo patients
+pnpm db:seed          # Seed 6 demo patients
+
+# 4. Start all services
 pnpm dev:all          # Web :3000 | API :3001 | ML :8001
+```
+
+### Configuration
+
+VoxAID needs API keys from 9 services (all have free tiers). See **[docs/KEYS-SETUP.md](docs/KEYS-SETUP.md)** for step-by-step instructions on where to get each key.
+
+After running `pnpm setup`, fill in your keys in these 3 files:
+
+| File | What goes here |
+|---|---|
+| `.env.local` | All keys (root reference) |
+| `apps/web/.env.local` | Clerk, Mapbox, `API_URL`, `API_SECRET_KEY` |
+| `apps/api/.env` | Twilio, OpenAI, Anthropic, ElevenLabs, Supabase, Upstash, R2, `API_SECRET_KEY` |
+
+Generate the shared API secret:
+
+```bash
+openssl rand -hex 32
+# Paste as API_SECRET_KEY in both apps/web/.env.local and apps/api/.env
 ```
 
 ### Deployment
 
-| Service | Platform | Command |
-|---|---|---|
-| Web (Next.js) | Vercel | `pnpm deploy:web` |
-| API (NestJS) | Railway | `pnpm deploy:api` |
-| ML (FastAPI) | Railway | `pnpm deploy:ml` |
+```bash
+# Prerequisites: log in to both platforms
+vercel login
+railway login
+
+# Deploy all services
+pnpm deploy           # or deploy individually:
+pnpm deploy:web       # Next.js → Vercel
+pnpm deploy:api       # NestJS  → Railway
+pnpm deploy:ml        # FastAPI �� Railway
+```
+
+**Post-deploy:** Set all env vars in each platform's dashboard (Vercel for web, Railway for API + ML), then update:
+
+- `API_URL` / `API_BASE_URL` → your Railway API URL
+- `ML_SERVICE_URL` → your Railway ML URL
+- `CORS_ORIGINS` → your Vercel web URL
+- Twilio webhook URLs → `https://<api-url>/twilio/voice` and `/twilio/whatsapp`
 
 ---
 
