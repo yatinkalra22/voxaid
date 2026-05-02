@@ -13,7 +13,7 @@ Patient (Feature Phone)
                                     ┌──────────┐
                                     │  NestJS   │
                                     │   API     │
-                                    │ (Railway) │
+                                    │ (Render) │
                                     └────┬─────┘
                                          │
                     ┌────────────────────┼────────────────────┐
@@ -21,7 +21,7 @@ Patient (Feature Phone)
                     ▼                    ▼                     ▼
             ┌──────────┐      ┌──────────────┐      ┌──────────────┐
             │  Whisper  │      │   FastAPI ML  │      │    Claude     │
-            │   (ASR)   │      │   (Railway)   │      │   Sonnet      │
+            │   (ASR)   │      │   (Render)   │      │   Sonnet      │
             │           │      │               │      │               │
             │ Transcribe│      │ Extract       │      │ Generate      │
             │ 99+ langs │      │ Biomarkers    │      │ Action Plan   │
@@ -61,7 +61,7 @@ Patient (Feature Phone)
 - **Design:** Inter + Sora fonts, teal-700 primary, mobile-first (360px)
 
 ### 2. API — Orchestration (`apps/api`)
-- **Runtime:** NestJS 11 on Railway (Docker)
+- **Runtime:** NestJS 11 on Render (Docker)
 - **Modules:**
   - `TwilioModule` — IVR voice webhook + WhatsApp webhook + recording callback
   - `QueueModule` — BullMQ queue backed by Upstash Redis
@@ -73,7 +73,7 @@ Patient (Feature Phone)
 - **Port:** 3001
 
 ### 3. ML — Voice Analysis (`apps/ml`)
-- **Runtime:** FastAPI (Python) on Railway (Docker)
+- **Runtime:** FastAPI (Python) on Render (Docker)
 - **Endpoints:**
   - `GET /health` — health check
   - `POST /extract-features` — audio file → 32 vocal biomarkers
@@ -139,8 +139,8 @@ Screening
 | Service | Platform | Cost (Free Tier) | Production Est. |
 |---|---|---|---|
 | Web (Next.js) | Vercel | Free (Hobby) | $20/mo (Pro) |
-| API (NestJS) | Railway | $5 credit/mo | $10-20/mo |
-| ML (FastAPI) | Railway | $5 credit/mo | $10-20/mo |
+| API (NestJS) | Render | $5 credit/mo | $10-20/mo |
+| ML (FastAPI) | Render | $5 credit/mo | $10-20/mo |
 | Database | Supabase | Free (500MB) | $25/mo (Pro) |
 | Redis | Upstash | Free (10K cmds/day) | $10/mo |
 | Auth | Clerk | Free (10K MAU) | $25/mo |

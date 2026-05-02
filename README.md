@@ -117,7 +117,7 @@ Patient (any phone)
           │
           ▼
 ┌──────────────────────────────────────────────────────┐
-│                    NestJS API (Railway)               │
+│                    NestJS API (Render)                │
 │                                                       │
 │  ┌─────────────┐  ┌──────────────┐  ┌─────────────┐ │
 │  │   Whisper    │  │  FastAPI ML  │  │   Claude     │ │
@@ -189,7 +189,7 @@ Patient (any phone)
 | **Queue** | Upstash Redis + BullMQ |
 | **Auth** | Clerk |
 | **Maps** | Mapbox GL JS |
-| **Deploy** | Vercel (web) + Railway (api + ml) |
+| **Deploy** | Vercel (web) + Render (api + ml) |
 
 ---
 
@@ -252,7 +252,7 @@ voxaid/
 - **Node.js 20+** and **pnpm 10+**
 - **Python 3.11+**
 - **Vercel CLI** — `npm i -g vercel`
-- **Railway CLI** — `npm i -g @railway/cli`
+- **Render account** — [render.com](https://render.com) (free tier)
 
 ### Quick Start
 
@@ -295,22 +295,29 @@ openssl rand -hex 32
 
 ### Deployment
 
+**Web (Next.js) → Vercel:**
 ```bash
-# Prerequisites: log in to both platforms
 vercel login
-railway login
-
-# Deploy all services
-pnpm deploy           # or deploy individually:
-pnpm deploy:web       # Next.js → Vercel
-pnpm deploy:api       # NestJS  → Railway
-pnpm deploy:ml        # FastAPI �� Railway
+cd apps/web && vercel --prod
 ```
 
-**Post-deploy:** Set all env vars in each platform's dashboard (Vercel for web, Railway for API + ML), then update:
+**API (NestJS) + ML (FastAPI) → Render (free tier):**
 
-- `API_URL` / `API_BASE_URL` → your Railway API URL
-- `ML_SERVICE_URL` → your Railway ML URL
+1. Push your code to GitHub
+2. Go to [render.com](https://render.com) → **New** → **Web Service**
+3. Connect your GitHub repo
+
+| Service | Root Directory | Build Command | Start Command |
+|---|---|---|---|
+| **API** | `apps/api` | `pnpm install && pnpm build` | `node dist/main.js` |
+| **ML** | `apps/ml` | `pip install -r requirements.txt` | `uvicorn main:app --host 0.0.0.0 --port $PORT` |
+
+4. Add all env vars from `.env.example` in each service's **Environment** tab on Render
+
+**Post-deploy:** Update these values with your actual Render URLs:
+
+- `API_URL` / `API_BASE_URL` → `https://voxaid-api.onrender.com`
+- `ML_SERVICE_URL` → `https://voxaid-ml.onrender.com`
 - `CORS_ORIGINS` → your Vercel web URL
 - Twilio webhook URLs → `https://<api-url>/twilio/voice` and `/twilio/whatsapp`
 
@@ -335,6 +342,7 @@ VoxAID was built for the **GNEC Hackathon 2026 Spring** (March 12 - May 3, 2026)
 ## Documentation
 
 - **[Architecture](docs/architecture.md)** — Full system design, data flow, database schema, infrastructure costs
+- **[Key Setup Guide](docs/KEYS-SETUP.md)** — Step-by-step instructions for obtaining all API keys
 
 ---
 

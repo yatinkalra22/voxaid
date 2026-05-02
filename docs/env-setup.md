@@ -198,7 +198,7 @@ R2_ENDPOINT=https://<ACCOUNT_ID>.r2.cloudflarestorage.com
 **Steps:**
 1. Go to [console.upstash.com](https://console.upstash.com) and sign up
 2. Click "Create Database"
-3. Pick a region close to your Railway deployment (e.g., us-east-1)
+3. Pick a region close to your Render deployment (e.g., us-east-1)
 4. Enable TLS (default)
 5. Go to **Details** tab and copy the Redis URL (starts with `rediss://`)
 
@@ -251,7 +251,7 @@ RESEND_API_KEY=re_xxxxx
 
 | Var | Where | Description |
 |---|---|---|
-| `API_BASE_URL` | `apps/api/.env` | Public URL of your API (ngrok for local, Railway URL for prod) |
+| `API_BASE_URL` | `apps/api/.env` | Public URL of your API (ngrok for local, Render URL for prod) |
 | `API_PORT` | `apps/api/.env` | Default: `3001` |
 | `ML_SERVICE_URL` | `apps/api/.env` | URL of the ML service (default: `http://localhost:8001`) |
 
@@ -263,8 +263,8 @@ ML_SERVICE_URL=http://localhost:8001
 
 For production:
 ```
-API_BASE_URL=https://voxaid-api.up.railway.app
-ML_SERVICE_URL=https://voxaid-ml.up.railway.app
+API_BASE_URL=https://voxaid-api.up.onrender.com
+ML_SERVICE_URL=https://voxaid-ml.up.onrender.com
 ```
 
 ---
@@ -290,7 +290,7 @@ CORS_ORIGINS=http://localhost:3000
 **Production:**
 ```
 API_SECRET_KEY=<generated-hex-string>
-CORS_ORIGINS=https://voxaid.vercel.app,https://voxaid-api.up.railway.app
+CORS_ORIGINS=https://voxaid.vercel.app,https://voxaid-api.up.onrender.com
 ```
 
 **How auth works:**
