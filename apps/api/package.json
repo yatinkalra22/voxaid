@@ -1,11 +1,12 @@
 {
-  "name": "api",
-  "version": "0.0.1",
-  "description": "",
-  "author": "",
+  "name": "@voxaid/api",
+  "version": "0.1.0",
+  "description": "VoxAID API — webhooks, orchestration, Postgres",
+  "author": "Yatin Kalra",
   "private": true,
   "license": "UNLICENSED",
   "scripts": {
+    "dev": "nest start --watch",
     "build": "nest build",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "start": "nest start",

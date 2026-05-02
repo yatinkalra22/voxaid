@@ -1,0 +1,10 @@
+{
+  "name": "@voxaid/ml",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "uvicorn main:app --reload --port 8001",
+    "build": "echo 'no build step for python'",
+    "lint": "echo 'TODO: ruff'"
+  }
+}
