@@ -5,12 +5,14 @@ import { AppService } from './app.service.js';
 import { TwilioModule } from './twilio/twilio.module.js';
 import { QueueModule } from './queue/queue.module.js';
 import { WhisperModule } from './whisper/whisper.module.js';
+import { ClaudeModule } from './claude/claude.module.js';
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
     QueueModule,
     WhisperModule,
+    ClaudeModule,
     TwilioModule,
   ],
   controllers: [AppController],
