@@ -6,6 +6,7 @@ import { TwilioModule } from './twilio/twilio.module.js';
 import { QueueModule } from './queue/queue.module.js';
 import { WhisperModule } from './whisper/whisper.module.js';
 import { ClaudeModule } from './claude/claude.module.js';
+import { TtsModule } from './tts/tts.module.js';
 
 @Module({
   imports: [
@@ -13,6 +14,7 @@ import { ClaudeModule } from './claude/claude.module.js';
     QueueModule,
     WhisperModule,
     ClaudeModule,
+    TtsModule,
     TwilioModule,
   ],
   controllers: [AppController],

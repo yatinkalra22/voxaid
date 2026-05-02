@@ -29,6 +29,7 @@
     "@prisma/client": "^7.8.0",
     "@upstash/redis": "^1.37.0",
     "bullmq": "^5.76.4",
+    "elevenlabs": "^1.59.0",
     "ioredis": "^5.10.1",
     "openai": "^6.35.0",
     "reflect-metadata": "^0.2.2",
