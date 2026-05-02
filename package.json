@@ -5,9 +5,22 @@
   "packageManager": "pnpm@10.30.1",
   "scripts": {
     "dev": "turbo dev",
+    "dev:web": "turbo dev --filter=@voxaid/web",
+    "dev:api": "turbo dev --filter=@voxaid/api",
+    "dev:all": "./scripts/dev.sh",
     "build": "turbo build",
+    "build:web": "turbo build --filter=@voxaid/web",
+    "build:api": "turbo build --filter=@voxaid/api",
     "lint": "turbo lint",
-    "clean": "turbo clean"
+    "clean": "turbo clean",
+    "setup": "./scripts/setup.sh",
+    "deploy": "./scripts/deploy.sh",
+    "deploy:web": "./scripts/deploy.sh web",
+    "deploy:api": "./scripts/deploy.sh api",
+    "deploy:ml": "./scripts/deploy.sh ml",
+    "db:migrate": "./scripts/db-migrate.sh dev",
+    "db:deploy": "./scripts/db-migrate.sh deploy",
+    "db:studio": "./scripts/db-migrate.sh studio"
   },
   "devDependencies": {
     "turbo": "^2.5.0"
