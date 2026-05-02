@@ -8,7 +8,14 @@ async function bootstrap() {
   // Twilio sends webhooks as application/x-www-form-urlencoded
   app.use(urlencoded({ extended: true }));
 
-  app.enableCors();
+  // Restrict CORS to known frontends — never allow all origins
+  const allowedOrigins = (process.env.CORS_ORIGINS ?? 'http://localhost:3000')
+    .split(',')
+    .map((o) => o.trim());
+  app.enableCors({
+    origin: allowedOrigins,
+    credentials: true,
+  });
 
   const port = process.env.PORT ?? 3001;
   await app.listen(port);

@@ -269,17 +269,50 @@ ML_SERVICE_URL=https://voxaid-ml.up.railway.app
 
 ---
 
+## 12. Security
+
+| Var | Where | Description |
+|---|---|---|
+| `API_SECRET_KEY` | `apps/api/.env` + `apps/web/.env.local` | Shared secret for API authentication. Next.js sends this in `x-api-key` header. |
+| `CORS_ORIGINS` | `apps/api/.env` + `apps/ml/.env` | Comma-separated list of allowed CORS origins. |
+
+**Generate a secret key:**
+```bash
+openssl rand -hex 32
+```
+
+**Local dev:**
+```
+API_SECRET_KEY=dev-secret-change-in-production
+CORS_ORIGINS=http://localhost:3000
+```
+
+**Production:**
+```
+API_SECRET_KEY=<generated-hex-string>
+CORS_ORIGINS=https://voxaid.vercel.app,https://voxaid-api.up.railway.app
+```
+
+**How auth works:**
+- `/patients` and `/referral` endpoints require `x-api-key` header matching `API_SECRET_KEY`
+- `/twilio/*` endpoints validate Twilio webhook signatures using `TWILIO_AUTH_TOKEN` (already configured in section 3)
+- The Next.js server sends `API_SECRET_KEY` server-side only — it is never exposed to the browser
+- The ML service CORS is restricted to the NestJS API origin only
+
+---
+
 ## Summary: Which File Gets What
 
-### `apps/web/.env.local` (Next.js — 3 vars)
+### `apps/web/.env.local` (Next.js — 4 vars)
 
 ```
 NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_...
 CLERK_SECRET_KEY=sk_test_...
 NEXT_PUBLIC_MAPBOX_TOKEN=pk.eyJ...
+API_SECRET_KEY=<same-as-api>
 ```
 
-### `apps/api/.env` (NestJS — 14 vars)
+### `apps/api/.env` (NestJS — 16 vars)
 
 ```
 DATABASE_URL=postgresql://...
@@ -298,11 +331,15 @@ UPSTASH_REDIS_URL=rediss://...
 API_BASE_URL=http://localhost:3001
 ML_SERVICE_URL=http://localhost:8001
 RESEND_API_KEY=re_...
+API_SECRET_KEY=<generated-hex>
+CORS_ORIGINS=http://localhost:3000
 ```
 
-### `apps/ml/` (FastAPI — 0 vars)
+### `apps/ml/` (FastAPI — 1 var)
 
-No env vars needed. Stateless service.
+```
+CORS_ORIGINS=http://localhost:3001
+```
 
 ---
 

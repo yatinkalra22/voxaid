@@ -1,7 +1,9 @@
-import { Controller, Get, Param, NotFoundException } from '@nestjs/common';
+import { Controller, Get, Param, NotFoundException, UseGuards } from '@nestjs/common';
 import { PatientsService } from './patients.service.js';
+import { ApiKeyGuard } from '../guards/api-key.guard.js';
 
 @Controller('patients')
+@UseGuards(ApiKeyGuard)
 export class PatientsController {
   constructor(private readonly patientsService: PatientsService) {}
 

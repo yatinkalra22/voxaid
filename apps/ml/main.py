@@ -10,11 +10,14 @@ app = FastAPI(
     version="0.1.0",
 )
 
-# Allow API server to call this service
+# Restrict CORS to the NestJS API server only
+import os
+
+_allowed_origins = os.getenv("CORS_ORIGINS", "http://localhost:3001").split(",")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["*"],
+    allow_origins=[o.strip() for o in _allowed_origins],
+    allow_methods=["POST", "GET"],
     allow_headers=["*"],
 )
 

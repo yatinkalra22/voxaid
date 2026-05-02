@@ -1,12 +1,14 @@
-import { Controller, Post, Req, Res, Logger, Inject } from '@nestjs/common';
+import { Controller, Post, Req, Res, Logger, Inject, UseGuards } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { Request, Response } from 'express';
 import { twiml } from 'twilio';
 import { Queue } from 'bullmq';
 import { TRANSCRIPTION_QUEUE } from '../queue/queue.module.js';
 import type { TranscriptionJobData } from '../whisper/whisper.processor.js';
+import { TwilioSignatureGuard } from '../guards/twilio-signature.guard.js';
 
 @Controller('twilio')
+@UseGuards(TwilioSignatureGuard)
 export class TwilioController {
   private readonly logger = new Logger(TwilioController.name);
 

@@ -1,7 +1,9 @@
 // Server-side data fetching for Next.js server components
 // Uses the API rewrite (/api/*) which proxies to the NestJS backend
 
+// Server-only — these env vars are NOT exposed to the browser
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+const API_KEY = process.env.API_SECRET_KEY || '';
 
 interface ApiResponse<T> {
   ok: boolean;
@@ -10,9 +12,9 @@ interface ApiResponse<T> {
 
 async function fetchApi<T>(path: string): Promise<T | null> {
   try {
-    // Server components fetch directly from the API (no browser, no rewrite)
     const res = await fetch(`${API_BASE}${path}`, {
-      next: { revalidate: 5 }, // ISR: refresh every 5s for near-realtime
+      headers: { 'x-api-key': API_KEY },
+      next: { revalidate: 5 },
     });
 
     if (!res.ok) return null;

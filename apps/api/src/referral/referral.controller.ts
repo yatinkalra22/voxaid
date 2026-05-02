@@ -1,5 +1,6 @@
-import { Controller, Post, Body, Logger } from '@nestjs/common';
+import { Controller, Post, Body, Logger, UseGuards } from '@nestjs/common';
 import { ReferralService } from './referral.service.js';
+import { ApiKeyGuard } from '../guards/api-key.guard.js';
 
 // Zod validation would go here in production — keeping it simple for hackathon
 interface ReferralDto {
@@ -15,6 +16,7 @@ interface ReferralDto {
 }
 
 @Controller('referral')
+@UseGuards(ApiKeyGuard)
 export class ReferralController {
   private readonly logger = new Logger(ReferralController.name);
 
