@@ -1,9 +1,13 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module.js';
 import { urlencoded } from 'express';
+import helmet from 'helmet';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+
+  // Security headers (X-Frame-Options, CSP, HSTS, etc.)
+  app.use(helmet());
 
   // Twilio sends webhooks as application/x-www-form-urlencoded
   app.use(urlencoded({ extended: true }));

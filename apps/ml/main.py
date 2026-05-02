@@ -1,6 +1,9 @@
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
+# Max upload: 10 MB — prevents OOM from oversized files
+MAX_UPLOAD_BYTES = 10 * 1024 * 1024
+
 from services.feature_extractor import extract_features, VoiceBiomarkers
 from services.classifier import classifier
 
@@ -37,6 +40,8 @@ async def extract_voice_features(audio: UploadFile = File(...)):
 
     if len(contents) < 1000:
         raise HTTPException(status_code=400, detail="Audio file too small")
+    if len(contents) > MAX_UPLOAD_BYTES:
+        raise HTTPException(status_code=413, detail="Audio file too large (max 10 MB)")
 
     try:
         features = extract_features(contents)
@@ -58,6 +63,8 @@ async def classify_depression(audio: UploadFile = File(...)):
 
     if len(contents) < 1000:
         raise HTTPException(status_code=400, detail="Audio file too small")
+    if len(contents) > MAX_UPLOAD_BYTES:
+        raise HTTPException(status_code=413, detail="Audio file too large (max 10 MB)")
 
     try:
         features = extract_features(contents)
