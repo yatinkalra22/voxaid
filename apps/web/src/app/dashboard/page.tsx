@@ -11,6 +11,8 @@ import { getPatients } from "@/lib/api";
 import { MOCK_PATIENTS, RISK_CONFIG } from "@/lib/mock-data";
 import type { RiskLevel } from "@/lib/mock-data";
 
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = {
   title: "Dashboard — VoxAID",
 };
