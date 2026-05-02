@@ -1,101 +1,216 @@
-import Image from "next/image";
+"use client";
+
+import { motion } from "framer-motion";
+import {
+  Phone,
+  Activity,
+  Brain,
+  MapPin,
+  ArrowRight,
+  Shield,
+  Globe,
+  Users,
+} from "lucide-react";
+
+const STEPS = [
+  {
+    icon: Phone,
+    title: "Call or Send Voice Note",
+    description:
+      "Patient calls a free number or sends a WhatsApp voice note. No smartphone or data plan needed.",
+  },
+  {
+    icon: Activity,
+    title: "Voice Biomarker Analysis",
+    description:
+      "AI extracts jitter, shimmer, pitch, and pause patterns from 25 seconds of speech.",
+  },
+  {
+    icon: Brain,
+    title: "Risk Classification",
+    description:
+      "ML model scores depression, anxiety, and NCD risk. Action plan generated in the patient's language.",
+  },
+  {
+    icon: MapPin,
+    title: "CHW Dashboard & Referral",
+    description:
+      "Community health workers see flagged patients on a map and refer to the nearest clinic in one click.",
+  },
+];
+
+const STATS = [
+  { value: "1.2B", label: "People with untreated mental disorders" },
+  { value: "75%", label: "Receive no treatment in LMICs" },
+  { value: "25s", label: "Of speech needed for screening" },
+  { value: "$0.03", label: "Cost per screening at scale" },
+];
 
 export default function Home() {
   return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="https://nextjs.org/icons/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-semibold">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
-
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
+    <main className="min-h-screen">
+      {/* Nav */}
+      <nav className="fixed top-0 w-full z-50 bg-white/80 backdrop-blur-md border-b border-slate-100">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
+          <span className="font-heading text-xl font-bold text-primary-700">
+            VoxAID
+          </span>
           <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+            href="#how-it-works"
+            className="text-sm font-medium text-slate-600 hover:text-primary-700 transition-colors"
           >
-            <Image
-              className="dark:invert"
-              src="https://nextjs.org/icons/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:min-w-44"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
+            How it works
           </a>
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-6 flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
+      </nav>
+
+      {/* Hero */}
+      <section className="pt-32 pb-20 px-4 sm:px-6">
+        <div className="max-w-4xl mx-auto text-center">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+          >
+            <div className="inline-flex items-center gap-2 bg-primary-50 text-primary-700 text-sm font-medium px-4 py-1.5 rounded-full mb-6">
+              <Shield className="w-4 h-4" />
+              SDG 3 — Good Health & Well-being
+            </div>
+
+            <h1 className="font-heading text-4xl sm:text-5xl md:text-6xl font-bold text-slate-900 tracking-tight text-balance leading-tight">
+              Screen mental health with
+              <span className="text-primary-700"> a phone call</span>
+            </h1>
+
+            <p className="mt-6 text-lg sm:text-xl text-slate-600 max-w-2xl mx-auto text-balance">
+              4 billion people will never see a psychiatrist. They will all
+              eventually own a phone that makes calls. VoxAID is how we screen
+              them.
+            </p>
+
+            <div className="mt-10 flex flex-col sm:flex-row gap-4 justify-center">
+              <a
+                href="#how-it-works"
+                className="inline-flex items-center justify-center gap-2 bg-primary-700 text-white font-medium px-6 py-3 rounded-xl hover:bg-primary-800 transition-colors shadow-md"
+              >
+                See how it works
+                <ArrowRight className="w-4 h-4" />
+              </a>
+            </div>
+          </motion.div>
+        </div>
+      </section>
+
+      {/* Stats */}
+      <section className="py-16 bg-slate-50">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
+            {STATS.map((stat) => (
+              <div key={stat.label} className="text-center">
+                <div className="font-heading text-3xl sm:text-4xl font-bold text-primary-700 tabular-nums">
+                  {stat.value}
+                </div>
+                <div className="mt-2 text-sm text-slate-600">{stat.label}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* How it works */}
+      <section id="how-it-works" className="py-20 px-4 sm:px-6">
+        <div className="max-w-6xl mx-auto">
+          <div className="text-center mb-16">
+            <h2 className="font-heading text-3xl sm:text-4xl font-bold text-slate-900">
+              How it works
+            </h2>
+            <p className="mt-4 text-slate-600 max-w-xl mx-auto">
+              From a 25-second phone call to a clinic referral — in under 60
+              seconds.
+            </p>
+          </div>
+
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-8">
+            {STEPS.map((step, i) => (
+              <div
+                key={step.title}
+                className="relative bg-white rounded-2xl p-6 shadow-sm border border-slate-100 hover:shadow-md transition-shadow"
+              >
+                <div className="w-10 h-10 bg-primary-50 rounded-xl flex items-center justify-center mb-4">
+                  <step.icon className="w-5 h-5 text-primary-700" />
+                </div>
+                <div className="absolute top-6 right-6 text-sm font-medium text-slate-300 tabular-nums">
+                  {String(i + 1).padStart(2, "0")}
+                </div>
+                <h3 className="font-heading text-lg font-semibold text-slate-900">
+                  {step.title}
+                </h3>
+                <p className="mt-2 text-sm text-slate-600 leading-relaxed">
+                  {step.description}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Alignment */}
+      <section className="py-20 px-4 sm:px-6 bg-slate-50">
+        <div className="max-w-4xl mx-auto text-center">
+          <h2 className="font-heading text-3xl sm:text-4xl font-bold text-slate-900">
+            Built for the last mile
+          </h2>
+          <p className="mt-4 text-slate-600 max-w-xl mx-auto">
+            Designed for community health workers on $50 Android tablets in
+            low-resource settings.
+          </p>
+
+          <div className="mt-12 grid sm:grid-cols-3 gap-8">
+            <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
+              <Globe className="w-6 h-6 text-primary-700 mx-auto mb-3" />
+              <h3 className="font-heading font-semibold text-slate-900">
+                Multilingual
+              </h3>
+              <p className="mt-2 text-sm text-slate-600">
+                Hindi, Spanish, Swahili, English — and any language Whisper
+                supports.
+              </p>
+            </div>
+            <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
+              <Phone className="w-6 h-6 text-primary-700 mx-auto mb-3" />
+              <h3 className="font-heading font-semibold text-slate-900">
+                Feature phone ready
+              </h3>
+              <p className="mt-2 text-sm text-slate-600">
+                Works with a basic phone call. No app download, no internet, no
+                literacy required.
+              </p>
+            </div>
+            <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
+              <Users className="w-6 h-6 text-primary-700 mx-auto mb-3" />
+              <h3 className="font-heading font-semibold text-slate-900">
+                CHW-first design
+              </h3>
+              <p className="mt-2 text-sm text-slate-600">
+                Dashboard built for ASHA workers, BRAC volunteers, and Last Mile
+                Health agents.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Footer */}
+      <footer className="py-12 px-4 sm:px-6 border-t border-slate-100">
+        <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
+          <span className="font-heading text-lg font-bold text-primary-700">
+            VoxAID
+          </span>
+          <p className="text-sm text-slate-500">
+            Voice-first health triage for the last 4 billion.
+          </p>
+        </div>
       </footer>
-    </div>
+    </main>
   );
 }
