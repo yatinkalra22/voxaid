@@ -18,16 +18,16 @@ export class WhisperService {
 
   /**
    * Downloads audio from URL and sends to Whisper for transcription.
-   * No language hint: whisper-large-v3 auto-detects reliably on 10-30s
-   * screening audio when paired with `temperature: 0` and a domain prompt,
-   * and we want code-switched speech (English ↔ Tamil/Hindi/Spanish/…) to
-   * survive instead of being silently dropped to match a hint.
+   * `languageHint` (ISO 639-1) biases language detection — strongly recommended
+   * for short Twilio recordings, where auto-detect frequently hallucinates
+   * (e.g. "It is written by Aditya" English output for Hindi audio, or
+   * "내 감사합니다" Korean output for English-with-noise audio).
    */
-  async transcribe(audioUrl: string): Promise<{
+  async transcribe(audioUrl: string, languageHint?: string): Promise<{
     text: string;
     language: string;
   }> {
-    this.logger.log(`Fetching audio from ${audioUrl}`);
+    this.logger.log(`Fetching audio from ${audioUrl} (hint=${languageHint ?? 'auto'})`);
 
     // Twilio recording + WhatsApp media URLs are private — Basic Auth required.
     const headers: Record<string, string> = {};
@@ -57,6 +57,7 @@ export class WhisperService {
       model: 'whisper-large-v3',
       file,
       response_format: 'verbose_json', // Gives us detected language
+      ...(languageHint ? { language: languageHint } : {}),
       // Encourage clean output when audio is sparse — reduces hallucinations.
       temperature: 0,
       prompt: 'The speaker shares their name and describes how they have been feeling.',
@@ -68,7 +69,7 @@ export class WhisperService {
 
     return {
       text: result.text,
-      language: result.language ?? 'en',
+      language: result.language ?? languageHint ?? 'en',
     };
   }
 }

@@ -58,6 +58,30 @@ function hashJitter(seed: string): { lat: number; lng: number } {
 }
 
 /**
+ * Map a phone number's country code to an ISO 639-1 language hint for
+ * Whisper. Without a hint, whisper-large-v3 frequently hallucinates short
+ * English nonsense ("It is written by Aditya") on Hindi audio, or detects
+ * Korean/Vietnamese on noisy English. The hint forces Whisper to commit
+ * to one language and emit empty/clean output instead of hallucinating.
+ */
+function inferLanguageFromPhone(phone: string | undefined): string | undefined {
+  if (!phone || !phone.startsWith('+')) return undefined;
+  // Longest prefixes first so +1-something doesn't shadow +1.
+  if (phone.startsWith('+880')) return 'bn'; // Bangladesh
+  if (phone.startsWith('+233')) return 'en'; // Ghana (English official)
+  if (phone.startsWith('+254')) return 'sw'; // Kenya — Swahili
+  if (phone.startsWith('+91')) return 'hi'; // India — IVR welcomes in Hindi, demo callers speak Hindi
+  if (phone.startsWith('+92')) return 'ur'; // Pakistan
+  if (phone.startsWith('+62')) return 'id'; // Indonesia
+  if (phone.startsWith('+52')) return 'es'; // Mexico
+  if (phone.startsWith('+55')) return 'pt'; // Brazil
+  if (phone.startsWith('+86')) return 'zh'; // China
+  if (phone.startsWith('+44')) return 'en'; // UK
+  if (phone.startsWith('+1')) return 'en'; // US/Canada
+  return undefined;
+}
+
+/**
  * Derive an approximate map location from the caller's phone country code,
  * with a per-caller jitter so different patients land on different pixels.
  * Returns null when we have no signal (anonymous caller, unknown country).
@@ -101,15 +125,18 @@ export class WhisperProcessor implements OnModuleInit, OnModuleDestroy {
       async (job: Job<TranscriptionJobData>) => {
         this.logger.log(`Processing job ${job.id}: ${job.data.source} audio`);
 
-        // Step 1: Transcribe via Whisper. No language hint — whisper-large-v3
-        // auto-detects reliably with temperature=0 + the domain prompt, and a
-        // strict hint drops the non-hinted half of code-switched audio
-        // (English ↔ Tamil/Hindi/Spanish) for our bilingual callers.
+        // Step 1: Transcribe via Whisper with a country-code language hint.
+        // Without the hint, whisper-large-v3 hallucinates short English
+        // nonsense on Hindi/Spanish audio (e.g. "It is written by Aditya"
+        // for "मेरा नाम आदित्य है"). The hint forces Whisper to commit to
+        // the expected language and produce clean output.
+        const languageHint = inferLanguageFromPhone(job.data.from);
         const { text, language } = await this.whisperService.transcribe(
           job.data.audioUrl,
+          languageHint,
         );
         this.logger.log(
-          `Transcribed: lang=${language} text="${text.slice(0, 80)}..."`,
+          `Transcribed: hint=${languageHint ?? 'auto'} lang=${language} text="${text.slice(0, 80)}..."`,
         );
 
         // Step 2: Run ML biomarkers and LLM name extraction in parallel.
