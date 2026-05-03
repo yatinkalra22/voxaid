@@ -138,56 +138,102 @@ function FeedItem({ row }: { row: FeedRow }) {
     row.patientName.toLowerCase().startsWith("anon-");
   const SourceIcon = row.source === "whatsapp" ? MessageSquare : Phone;
 
+  const showLanguageBadge =
+    row.transcriptEn &&
+    row.language &&
+    row.language.toLowerCase() !== "en" &&
+    row.language.toLowerCase() !== "english";
+  const langTag = row.language
+    ? (row.language.length <= 3 ? row.language : row.language.slice(0, 2)).toUpperCase()
+    : "";
+
   return (
     <li>
       <Link
         href={`/dashboard/patient/${row.patientId}?screening=${row.screeningId}`}
-        className="grid grid-cols-[auto_minmax(0,1fr)_auto] sm:grid-cols-[auto_minmax(160px,210px)_minmax(0,1fr)_auto] items-center gap-3 sm:gap-4 px-4 sm:px-6 py-3.5 hover:bg-slate-50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-400"
+        className="block px-4 sm:px-6 py-3.5 hover:bg-slate-50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-400"
       >
-        <div className="flex items-center gap-3 shrink-0">
+        {/* Mobile layout: stacked, name gets the full row */}
+        <div className="sm:hidden flex items-start gap-3">
           <span
-            className={`w-2 h-2 rounded-full ${risk.dot}`}
+            className={`mt-1.5 w-2 h-2 rounded-full ${risk.dot} shrink-0`}
             aria-hidden
           />
-          <div className="text-xs text-slate-500 tabular-nums w-12 sm:w-16 leading-tight">
-            {timeOfDay(row.createdAt)}
+          <div className="flex-1 min-w-0">
+            <div className="flex items-baseline gap-2">
+              <span className="text-[11px] text-slate-500 tabular-nums shrink-0">
+                {timeOfDay(row.createdAt)}
+              </span>
+              <p
+                className={`flex-1 min-w-0 truncate font-medium ${
+                  isUnknown ? "italic text-slate-500" : "text-slate-900"
+                }`}
+              >
+                {isUnknown ? "Unknown caller" : row.patientName}
+              </p>
+              <span className="text-sm font-semibold text-slate-900 tabular-nums shrink-0">
+                {Math.round(row.depressionScore * 100)}%
+              </span>
+            </div>
+            <div className="mt-1.5 flex items-center gap-2 min-w-0">
+              <span className="inline-flex items-center gap-1 text-xs text-slate-500 min-w-0">
+                <SourceIcon className="w-3 h-3 shrink-0" />
+                <span className="truncate tabular-nums">
+                  {maskPhone(row.patientPhone)}
+                </span>
+              </span>
+              <RiskPill risk={row.riskLevel} className="shrink-0" />
+            </div>
           </div>
         </div>
 
-        <div className="min-w-0">
-          <p
-            className={`font-medium truncate ${
-              isUnknown ? "italic text-slate-500" : "text-slate-900"
-            }`}
-          >
-            {isUnknown ? "Unknown caller" : row.patientName}
-          </p>
-          <p className="text-xs text-slate-500 flex items-center gap-1.5 mt-0.5">
-            <SourceIcon className="w-3 h-3 shrink-0" />
-            <span className="truncate tabular-nums">
-              {maskPhone(row.patientPhone)}
-            </span>
-          </p>
-        </div>
+        {/* Desktop layout: 4-col grid with transcript preview */}
+        <div className="hidden sm:grid grid-cols-[auto_minmax(160px,210px)_minmax(0,1fr)_auto] items-center gap-4">
+          <div className="flex items-center gap-3 shrink-0">
+            <span
+              className={`w-2 h-2 rounded-full ${risk.dot}`}
+              aria-hidden
+            />
+            <div className="text-xs text-slate-500 tabular-nums w-16 leading-tight">
+              {timeOfDay(row.createdAt)}
+            </div>
+          </div>
 
-        <div className="hidden sm:flex min-w-0 items-start gap-2 text-sm text-slate-600">
-          <Quote className="w-3 h-3 mt-1 shrink-0 text-slate-300" aria-hidden />
-          <span className="italic line-clamp-2 leading-snug">
-            {row.transcriptEn || row.transcript || "—"}
-          </span>
-          {row.transcriptEn && row.language && row.language.toLowerCase() !== "en" && row.language.toLowerCase() !== "english" && (
-            <span className="text-[10px] uppercase tracking-wider text-slate-400 shrink-0 ml-1 mt-1">
-              {(row.language.length <= 3 ? row.language : row.language.slice(0, 2)).toUpperCase()}
-            </span>
-          )}
-        </div>
+          <div className="min-w-0">
+            <p
+              className={`font-medium truncate ${
+                isUnknown ? "italic text-slate-500" : "text-slate-900"
+              }`}
+            >
+              {isUnknown ? "Unknown caller" : row.patientName}
+            </p>
+            <p className="text-xs text-slate-500 flex items-center gap-1.5 mt-0.5">
+              <SourceIcon className="w-3 h-3 shrink-0" />
+              <span className="truncate tabular-nums">
+                {maskPhone(row.patientPhone)}
+              </span>
+            </p>
+          </div>
 
-        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-          <RiskPill risk={row.riskLevel} />
-          <span className="text-sm font-semibold text-slate-900 tabular-nums w-10 sm:w-12 text-right">
-            {Math.round(row.depressionScore * 100)}%
-          </span>
-          <ChevronRight className="w-4 h-4 text-slate-400" />
+          <div className="flex min-w-0 items-start gap-2 text-sm text-slate-600">
+            <Quote className="w-3 h-3 mt-1 shrink-0 text-slate-300" aria-hidden />
+            <span className="italic line-clamp-2 leading-snug">
+              {row.transcriptEn || row.transcript || "—"}
+            </span>
+            {showLanguageBadge && (
+              <span className="text-[10px] uppercase tracking-wider text-slate-400 shrink-0 ml-1 mt-1">
+                {langTag}
+              </span>
+            )}
+          </div>
+
+          <div className="flex items-center gap-3 shrink-0">
+            <RiskPill risk={row.riskLevel} />
+            <span className="text-sm font-semibold text-slate-900 tabular-nums w-12 text-right">
+              {Math.round(row.depressionScore * 100)}%
+            </span>
+            <ChevronRight className="w-4 h-4 text-slate-400" />
+          </div>
         </div>
       </Link>
     </li>

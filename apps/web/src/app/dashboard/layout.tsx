@@ -12,11 +12,11 @@ export default function DashboardLayout({
     <div className="min-h-screen bg-slate-50">
       {/* Top nav */}
       <header className="sticky top-0 z-50 bg-white border-b border-slate-200 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
-          <div className="flex items-center gap-6">
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 h-14 flex items-center justify-between gap-2">
+          <div className="flex items-center gap-3 sm:gap-6 min-w-0">
             <Link
               href="/dashboard"
-              className="font-heading text-lg font-bold text-primary-700"
+              className="font-heading text-lg font-bold text-primary-700 shrink-0"
             >
               VoxAID
             </Link>
@@ -25,10 +25,10 @@ export default function DashboardLayout({
               <NavLink href="/dashboard/map" icon={Map} label="Map" />
             </nav>
           </div>
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2 text-sm text-slate-600">
+          <div className="flex items-center gap-3 sm:gap-4 shrink-0">
+            <div className="hidden sm:flex items-center gap-2 text-sm text-slate-600">
               <Activity className="w-4 h-4 text-primary-600" />
-              <span className="hidden sm:inline">CHW Dashboard</span>
+              <span>CHW Dashboard</span>
             </div>
             <UserButton />
           </div>
@@ -55,10 +55,11 @@ function NavLink({
   return (
     <Link
       href={href}
-      className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium text-slate-600 hover:text-primary-700 hover:bg-primary-50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 focus-visible:ring-offset-2"
+      aria-label={label}
+      className="flex items-center gap-2 px-2.5 sm:px-3 py-1.5 rounded-lg text-sm font-medium text-slate-600 hover:text-primary-700 hover:bg-primary-50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 focus-visible:ring-offset-2"
     >
       <Icon className="w-4 h-4" />
-      {label}
+      <span className="hidden sm:inline">{label}</span>
     </Link>
   );
 }

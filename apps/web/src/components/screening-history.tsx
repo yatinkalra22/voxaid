@@ -113,21 +113,19 @@ function HistoryRow({
         type="button"
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
-        className="w-full flex items-center gap-3 py-3 text-left hover:bg-slate-50 transition-colors px-2 -mx-2 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-400"
+        className="w-full flex items-center gap-2 sm:gap-3 py-3 text-left hover:bg-slate-50 transition-colors px-2 -mx-2 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-400"
       >
         <ChevronDown
           className={`w-4 h-4 text-slate-400 shrink-0 transition-transform ${open ? "rotate-180" : ""}`}
         />
-        <div className="flex-1 flex items-center gap-3 min-w-0">
-          <span className="text-sm font-medium text-slate-700 tabular-nums w-36 shrink-0">
-            {formatDateTime(screening.createdAt)}
-          </span>
-          <RiskPill risk={screening.riskLevel} />
-          <span className="text-sm font-semibold text-slate-900 tabular-nums">
-            {Math.round(screening.depressionScore * 100)}%
-          </span>
-        </div>
-        <span className="inline-flex items-center gap-1 text-[11px] text-slate-500 uppercase tracking-wider shrink-0">
+        <span className="text-sm font-medium text-slate-700 tabular-nums truncate min-w-0 flex-1 sm:flex-none sm:w-36">
+          {formatDateTime(screening.createdAt)}
+        </span>
+        <RiskPill risk={screening.riskLevel} className="shrink-0" />
+        <span className="text-sm font-semibold text-slate-900 tabular-nums shrink-0 w-10 text-right">
+          {Math.round(screening.depressionScore * 100)}%
+        </span>
+        <span className="hidden sm:inline-flex items-center gap-1 text-[11px] text-slate-500 uppercase tracking-wider shrink-0 ml-auto">
           <SourceIcon className="w-3 h-3" />
           {screening.source}
         </span>
