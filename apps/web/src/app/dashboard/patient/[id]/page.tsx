@@ -6,17 +6,25 @@ import {
   Phone,
   MapPin,
   Globe,
-  Clock,
   Activity,
   AlertTriangle,
   FileText,
+  Sparkles,
+  History,
 } from "lucide-react";
-import { getPatient } from "@/lib/api";
+import { getPatient, getAudioUrl } from "@/lib/api";
 import type { Biomarkers } from "@/lib/api";
 import { MOCK_PATIENTS, RISK_CONFIG } from "@/lib/mock-data";
 import { ReferralButton } from "@/components/referral-button";
-import { AnimatedScore } from "@/components/animated-score";
+import { ScoreGauge } from "@/components/score-gauge";
+import { AudioPlayer } from "@/components/audio-player";
+import { BiomarkerBar } from "@/components/biomarker-bar";
+import {
+  ScreeningHistory,
+  type HistoryScreening,
+} from "@/components/screening-history";
 import type { RiskLevel } from "@/lib/mock-data";
+import type { BiomarkerKey } from "@/lib/biomarker-ranges";
 
 const VALID_RISK_LEVELS = new Set<string>(["low", "moderate", "high", "critical"]);
 
@@ -46,6 +54,27 @@ function toBiomarkers(raw: unknown): Biomarkers {
   };
 }
 
+const LANGUAGE_NAMES: Record<string, string> = {
+  en: "English",
+  english: "English",
+  hi: "Hindi",
+  hindi: "Hindi",
+  bn: "Bengali",
+  bengali: "Bengali",
+  sw: "Swahili",
+  swahili: "Swahili",
+  es: "Spanish",
+  spanish: "Spanish",
+  pt: "Portuguese",
+  ur: "Urdu",
+  urdu: "Urdu",
+  zh: "Chinese",
+  id: "Indonesian",
+};
+function languageDisplay(code: string): string {
+  return LANGUAGE_NAMES[code.toLowerCase()] ?? code.toUpperCase();
+}
+
 export async function generateMetadata({
   params,
 }: {
@@ -62,13 +91,34 @@ export default async function PatientDetailPage({
 }: {
   params: { id: string };
 }) {
-  // Try API first, fall back to mock
   const apiPatient = await getPatient(params.id);
   const mockPatient = MOCK_PATIENTS.find((p) => p.id === params.id);
 
   if (!apiPatient && !mockPatient) return notFound();
 
-  // Normalize to common shape with safe type coercion
+  const screenings: HistoryScreening[] = apiPatient
+    ? apiPatient.screenings.map((s) => ({
+        id: s.id,
+        createdAt: s.createdAt,
+        depressionScore: s.depressionScore ?? 0,
+        riskLevel: toRiskLevel(s.depressionRisk),
+        source: s.source ?? "ivr",
+        transcript: s.transcript ?? "",
+        actionPlan: s.actionPlan ?? "",
+      }))
+    : [
+        {
+          id: mockPatient!.lastScreening.id,
+          createdAt: mockPatient!.lastScreening.createdAt,
+          depressionScore: mockPatient!.lastScreening.depressionScore,
+          riskLevel: mockPatient!.lastScreening.riskLevel,
+          source: "ivr",
+          transcript: mockPatient!.lastScreening.transcript,
+          actionPlan: mockPatient!.lastScreening.actionPlan,
+        },
+      ];
+
+  const latest = apiPatient?.screenings[0];
   const patient = apiPatient
     ? {
         name: apiPatient.name,
@@ -76,14 +126,17 @@ export default async function PatientDetailPage({
         language: apiPatient.language,
         latitude: apiPatient.latitude ?? 0,
         longitude: apiPatient.longitude ?? 0,
-        screening: apiPatient.screenings[0]
+        screening: latest
           ? {
-              depressionScore: apiPatient.screenings[0].depressionScore ?? 0,
-              riskLevel: toRiskLevel(apiPatient.screenings[0].depressionRisk),
-              transcript: apiPatient.screenings[0].transcript ?? "",
-              actionPlan: apiPatient.screenings[0].actionPlan ?? "",
-              biomarkers: toBiomarkers(apiPatient.screenings[0].biomarkers),
-              createdAt: apiPatient.screenings[0].createdAt,
+              id: latest.id,
+              depressionScore: latest.depressionScore ?? 0,
+              riskLevel: toRiskLevel(latest.depressionRisk),
+              transcript: latest.transcript ?? "",
+              actionPlan: latest.actionPlan ?? "",
+              biomarkers: toBiomarkers(latest.biomarkers),
+              createdAt: latest.createdAt,
+              language: latest.language ?? apiPatient.language,
+              hasAudio: !!latest.audioUrl,
             }
           : null,
       }
@@ -94,12 +147,15 @@ export default async function PatientDetailPage({
         latitude: mockPatient!.latitude,
         longitude: mockPatient!.longitude,
         screening: {
+          id: mockPatient!.lastScreening.id,
           depressionScore: mockPatient!.lastScreening.depressionScore,
           riskLevel: mockPatient!.lastScreening.riskLevel,
           transcript: mockPatient!.lastScreening.transcript,
           actionPlan: mockPatient!.lastScreening.actionPlan,
           biomarkers: mockPatient!.lastScreening.biomarkers,
           createdAt: mockPatient!.lastScreening.createdAt,
+          language: mockPatient!.language,
+          hasAudio: false,
         },
       };
 
@@ -107,10 +163,29 @@ export default async function PatientDetailPage({
   if (!s) return notFound();
 
   const risk = RISK_CONFIG[s.riskLevel];
+  const audioUrl = s.hasAudio ? await getAudioUrl(s.id) : null;
+  const isUnknownName = !patient.name || patient.name.toLowerCase() === "unknown";
+  const displayName = isUnknownName ? "Unknown caller" : patient.name;
+  const hasLocation = patient.latitude !== 0 || patient.longitude !== 0;
+
+  const biomarkerKeys: BiomarkerKey[] = [
+    "f0Mean",
+    "jitter",
+    "shimmer",
+    "hnr",
+    "pauseRatio",
+    "speechRate",
+  ];
+
+  const pastScreenings = screenings.slice(1);
+  const actionPlanLines = (s.actionPlan ?? "")
+    .split(/\n+|(?:^|\s)[-•]\s+/)
+    .map((l) => l.trim())
+    .filter(Boolean);
+  const renderAsList = actionPlanLines.length > 1;
 
   return (
     <div className="space-y-6">
-      {/* Back link */}
       <Link
         href="/dashboard"
         className="inline-flex items-center gap-2 text-sm text-slate-500 hover:text-primary-700 transition-colors"
@@ -119,171 +194,144 @@ export default async function PatientDetailPage({
         Back to patients
       </Link>
 
-      {/* Patient header */}
-      <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div>
-            <h1 className="font-heading text-2xl font-bold text-slate-900">
-              {patient.name}
+      {/* Header card */}
+      <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 space-y-5">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+          <div className="min-w-0">
+            <h1
+              className={`font-heading text-3xl font-bold ${
+                isUnknownName ? "text-slate-500 italic" : "text-slate-900"
+              }`}
+            >
+              {displayName}
             </h1>
-            <div className="flex flex-wrap items-center gap-4 mt-2 text-sm text-slate-500">
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2 text-sm text-slate-500">
               <span className="inline-flex items-center gap-1.5">
                 <Phone className="w-3.5 h-3.5" />
                 {patient.phone}
               </span>
               <span className="inline-flex items-center gap-1.5">
                 <Globe className="w-3.5 h-3.5" />
-                {patient.language.toUpperCase()}
+                {languageDisplay(s.language)}
               </span>
-              <span className="inline-flex items-center gap-1.5">
-                <MapPin className="w-3.5 h-3.5" />
-                {patient.latitude.toFixed(2)}, {patient.longitude.toFixed(2)}
-              </span>
+              {hasLocation && (
+                <span className="inline-flex items-center gap-1.5">
+                  <MapPin className="w-3.5 h-3.5" />
+                  {patient.latitude.toFixed(2)}, {patient.longitude.toFixed(2)}
+                </span>
+              )}
             </div>
           </div>
 
-          {/* Risk badge large */}
-          <div className="flex items-center gap-3">
-            <div
-              className={`px-4 py-2 rounded-xl border ${risk.bg} ${risk.text} ${risk.border}`}
-            >
-              <div className="text-xs font-medium uppercase tracking-wider">
-                Risk Level
-              </div>
-              <div className="text-lg font-bold capitalize">
-                {s.riskLevel}
-              </div>
-            </div>
-            <AnimatedScore
+          <div className="flex items-center gap-4 shrink-0">
+            <ScoreGauge
               score={s.depressionScore}
-              riskLevel={s.riskLevel}
-              riskColor={risk.color}
+              color={risk.color}
+              riskLabel={s.riskLevel}
             />
           </div>
         </div>
+
+        <AudioPlayer src={audioUrl} />
       </div>
 
+      {/* Transcript + Biomarkers */}
       <div className="grid lg:grid-cols-2 gap-6">
-        {/* Transcript */}
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
-          <div className="flex items-center gap-2 mb-4">
-            <FileText className="w-4 h-4 text-primary-700" />
-            <h2 className="font-heading font-semibold text-slate-900">
-              Transcript
-            </h2>
-            <span className="text-xs text-slate-400 ml-auto">
-              <Clock className="w-3 h-3 inline mr-1" />
-              {new Date(s.createdAt).toLocaleString()}
+        <section className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+          <header className="flex items-center justify-between gap-2 mb-4">
+            <div className="flex items-center gap-2">
+              <FileText className="w-4 h-4 text-primary-700" />
+              <h2 className="font-heading font-semibold text-slate-900">
+                Transcript
+              </h2>
+            </div>
+            <span className="text-[10px] uppercase tracking-wider text-slate-400">
+              {languageDisplay(s.language)}
             </span>
-          </div>
-          <p className="text-sm text-slate-700 leading-relaxed italic bg-slate-50 rounded-xl p-4">
-            &ldquo;{s.transcript}&rdquo;
+          </header>
+          <p className="text-sm text-slate-700 leading-relaxed italic bg-slate-50 rounded-xl p-4 border-l-2 border-primary-200">
+            &ldquo;{s.transcript || "—"}&rdquo;
           </p>
-        </div>
+          <div className="mt-3 text-[11px] text-slate-400">
+            Recorded {new Date(s.createdAt).toLocaleString()}
+          </div>
+        </section>
 
-        {/* Voice Biomarkers */}
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
-          <div className="flex items-center gap-2 mb-4">
+        <section className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+          <header className="flex items-center gap-2 mb-1">
             <Activity className="w-4 h-4 text-primary-700" />
             <h2 className="font-heading font-semibold text-slate-900">
               Voice Biomarkers
             </h2>
+          </header>
+          <p className="text-[11px] text-slate-500 mb-5">
+            Compared against typical adult speech ranges. Green band = healthy.
+          </p>
+          <div className="space-y-4">
+            {biomarkerKeys.map((key) => (
+              <BiomarkerBar key={key} metric={key} value={s.biomarkers[key]} />
+            ))}
           </div>
-          <div className="grid grid-cols-2 gap-4">
-            <BiomarkerCard
-              label="F0 Mean"
-              value={`${s.biomarkers.f0Mean.toFixed(1)} Hz`}
-              hint="Lower in depression"
-              warning={s.biomarkers.f0Mean < 150}
-            />
-            <BiomarkerCard
-              label="Jitter"
-              value={`${(s.biomarkers.jitter * 100).toFixed(2)}%`}
-              hint="Higher in depression"
-              warning={s.biomarkers.jitter > 0.02}
-            />
-            <BiomarkerCard
-              label="Shimmer"
-              value={`${(s.biomarkers.shimmer * 100).toFixed(2)}%`}
-              hint="Higher in depression"
-              warning={s.biomarkers.shimmer > 0.05}
-            />
-            <BiomarkerCard
-              label="HNR"
-              value={`${s.biomarkers.hnr.toFixed(1)} dB`}
-              hint="Lower in depression"
-              warning={s.biomarkers.hnr < 15}
-            />
-            <BiomarkerCard
-              label="Pause Ratio"
-              value={`${(s.biomarkers.pauseRatio * 100).toFixed(0)}%`}
-              hint="Higher in depression"
-              warning={s.biomarkers.pauseRatio > 0.35}
-            />
-            <BiomarkerCard
-              label="Speech Rate"
-              value={`${s.biomarkers.speechRate.toFixed(0)} f/s`}
-              hint="Lower in depression"
-              warning={s.biomarkers.speechRate < 90}
-            />
-          </div>
-        </div>
+        </section>
       </div>
 
       {/* Action Plan */}
-      <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
-        <div className="flex items-center gap-2 mb-4">
-          <AlertTriangle className="w-4 h-4 text-primary-700" />
-          <h2 className="font-heading font-semibold text-slate-900">
-            Action Plan
-          </h2>
-        </div>
-        <p className="text-sm text-slate-700 leading-relaxed">
-          {s.actionPlan}
-        </p>
+      <section className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+        <header className="flex items-center justify-between gap-2 mb-4">
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="w-4 h-4 text-primary-700" />
+            <h2 className="font-heading font-semibold text-slate-900">
+              Action Plan
+            </h2>
+          </div>
+          <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wider text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">
+            <Sparkles className="w-3 h-3" />
+            AI generated
+          </span>
+        </header>
+
+        {renderAsList ? (
+          <ul className="space-y-2">
+            {actionPlanLines.map((line, i) => (
+              <li key={i} className="flex gap-2 text-sm text-slate-700">
+                <span className="text-primary-700 mt-0.5">•</span>
+                <span className="leading-relaxed">{line}</span>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="text-sm text-slate-700 leading-relaxed">
+            {s.actionPlan || "—"}
+          </p>
+        )}
 
         <div className="mt-6 flex flex-col sm:flex-row gap-3">
           <ReferralButton
-            patientName={patient.name}
+            patientName={displayName}
             patientPhone={patient.phone}
             riskLevel={s.riskLevel}
             depressionScore={s.depressionScore}
             actionPlan={s.actionPlan}
           />
         </div>
-      </div>
-    </div>
-  );
-}
+      </section>
 
-function BiomarkerCard({
-  label,
-  value,
-  hint,
-  warning,
-}: {
-  label: string;
-  value: string;
-  hint: string;
-  warning: boolean;
-}) {
-  return (
-    <div
-      className={`rounded-xl p-3 border ${
-        warning
-          ? "bg-red-50 border-red-100"
-          : "bg-slate-50 border-slate-100"
-      }`}
-    >
-      <div className="text-xs text-slate-500">{label}</div>
-      <div
-        className={`text-lg font-bold tabular-nums ${
-          warning ? "text-red-700" : "text-slate-900"
-        }`}
-      >
-        {value}
-      </div>
-      <div className="text-[10px] text-slate-400">{hint}</div>
+      {/* Screening history */}
+      <section className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+        <header className="flex items-center gap-2 mb-5">
+          <History className="w-4 h-4 text-primary-700" />
+          <h2 className="font-heading font-semibold text-slate-900">
+            Screening History
+          </h2>
+        </header>
+        {pastScreenings.length === 0 ? (
+          <p className="text-sm text-slate-500">
+            This is the first screening for this patient. History will appear here as new calls come in.
+          </p>
+        ) : (
+          <ScreeningHistory screenings={pastScreenings} />
+        )}
+      </section>
     </div>
   );
 }

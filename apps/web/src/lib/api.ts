@@ -72,3 +72,19 @@ export async function getPatients(): Promise<Patient[]> {
 export async function getPatient(id: string): Promise<Patient | null> {
   return fetchApi<Patient>(`/patients/${id}`);
 }
+
+/**
+ * Mints a short-lived signed URL for a screening's audio recording.
+ * Called server-side; the returned URL embeds the token and is safe to
+ * pass to a browser <audio src> element.
+ */
+export async function getAudioUrl(screeningId: string): Promise<string | null> {
+  const data = await fetchApi<{ token: string; expiresAt: number }>(
+    `/screenings/${screeningId}/audio-token`,
+  );
+  if (!data?.token) return null;
+  // Browser-relative URL — the Next.js rewrite at /api/:path* proxies to the
+  // NestJS API. Avoids mixed-content blocking when the dashboard is on HTTPS
+  // and the API is plain HTTP.
+  return `/api/screenings/${screeningId}/audio?token=${encodeURIComponent(data.token)}`;
+}
