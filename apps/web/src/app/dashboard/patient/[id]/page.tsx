@@ -232,7 +232,7 @@ export default async function PatientDetailPage({
           </div>
         </div>
 
-        <AudioPlayer src={audioUrl} />
+        {audioUrl && <AudioPlayer src={audioUrl} />}
       </div>
 
       {/* Transcript + Biomarkers */}

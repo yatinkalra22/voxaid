@@ -1,20 +1,14 @@
 import type { Metadata } from "next";
 import {
   AlertTriangle,
-  Phone,
   TrendingUp,
-  TrendingDown,
-  Minus,
   Users,
-  ChevronRight,
   CalendarDays,
 } from "lucide-react";
 import Link from "next/link";
 import { getPatients } from "@/lib/api";
-import { MOCK_PATIENTS, RISK_CONFIG } from "@/lib/mock-data";
-import { Sparkline } from "@/components/sparkline";
-import { RiskPill } from "@/components/risk-pill";
-import { RelativeTime } from "@/components/relative-time";
+import { MOCK_PATIENTS } from "@/lib/mock-data";
+import { ScreeningFeed, type FeedRow } from "@/components/screening-feed";
 import type { RiskLevel } from "@/lib/mock-data";
 
 export const dynamic = "force-dynamic";
@@ -36,91 +30,77 @@ function toRiskLevel(value: string | null | undefined): RiskLevel {
 
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 
-interface Row {
-  id: string;
-  name: string;
-  phone: string;
-  riskLevel: RiskLevel;
-  depressionScore: number;
-  /** scores chronological — oldest first; suitable for sparkline */
-  trend: number[];
-  /** Δ between latest and prior score, or 0 if only one point */
-  delta: number;
-  lastScreeningAt: string | null;
-}
-
 export default async function DashboardPage() {
   const apiPatients = await getPatients();
   const useApi = apiPatients.length > 0;
 
-  let rows: Row[];
+  let feed: FeedRow[];
+  let totalPatients = 0;
+  let criticalCount = 0;
+  let highCount = 0;
   let screeningsThisWeek = 0;
   let screeningsLastWeek = 0;
 
   if (useApi) {
-    rows = apiPatients.map((p) => {
-      const screenings = p.screenings; // newest-first from API (take: 5)
-      const latest = screenings[0];
-      // Sparkline wants oldest→newest
-      const trend = [...screenings]
-        .reverse()
-        .map((s) => s.depressionScore ?? 0);
-      const delta =
-        screenings.length >= 2
-          ? (screenings[0].depressionScore ?? 0) -
-            (screenings[1].depressionScore ?? 0)
-          : 0;
-      return {
-        id: p.id,
-        name: p.name,
-        phone: p.phone,
-        riskLevel: toRiskLevel(latest?.depressionRisk),
-        depressionScore: latest?.depressionScore ?? 0,
-        trend,
-        delta,
-        lastScreeningAt: latest?.createdAt ?? null,
-      };
+    totalPatients = apiPatients.length;
+    feed = apiPatients.flatMap((p) =>
+      p.screenings.map((s) => ({
+        screeningId: s.id,
+        patientId: p.id,
+        patientName: p.name,
+        patientPhone: p.phone,
+        riskLevel: toRiskLevel(s.depressionRisk),
+        depressionScore: s.depressionScore ?? 0,
+        transcript: s.transcript ?? "",
+        source: s.source ?? "ivr",
+        createdAt: s.createdAt,
+      })),
+    );
+
+    apiPatients.forEach((p) => {
+      const latest = p.screenings[0];
+      if (!latest) return;
+      const risk = toRiskLevel(latest.depressionRisk);
+      if (risk === "critical") criticalCount++;
+      if (risk === "high") highCount++;
     });
 
-    // Stat: screenings this week / last week
     const now = Date.now();
-    apiPatients.forEach((p) => {
-      p.screenings.forEach((s) => {
-        const t = new Date(s.createdAt).getTime();
-        const ageMs = now - t;
-        if (ageMs >= 0 && ageMs < WEEK_MS) screeningsThisWeek++;
-        else if (ageMs >= WEEK_MS && ageMs < 2 * WEEK_MS)
-          screeningsLastWeek++;
-      });
+    feed.forEach((s) => {
+      const ageMs = now - new Date(s.createdAt).getTime();
+      if (ageMs >= 0 && ageMs < WEEK_MS) screeningsThisWeek++;
+      else if (ageMs >= WEEK_MS && ageMs < 2 * WEEK_MS) screeningsLastWeek++;
     });
   } else {
-    rows = MOCK_PATIENTS.map((p) => ({
-      id: p.id,
-      name: p.name,
-      phone: p.phone,
+    totalPatients = MOCK_PATIENTS.length;
+    feed = MOCK_PATIENTS.map((p) => ({
+      screeningId: p.lastScreening.id,
+      patientId: p.id,
+      patientName: p.name,
+      patientPhone: p.phone,
       riskLevel: p.lastScreening.riskLevel,
       depressionScore: p.lastScreening.depressionScore,
-      trend: [p.lastScreening.depressionScore],
-      delta: 0,
-      lastScreeningAt: p.lastScreening.createdAt,
+      transcript: p.lastScreening.transcript,
+      source: "ivr",
+      createdAt: p.lastScreening.createdAt,
     }));
-    screeningsThisWeek = MOCK_PATIENTS.length;
+    criticalCount = feed.filter((r) => r.riskLevel === "critical").length;
+    highCount = feed.filter((r) => r.riskLevel === "high").length;
+    screeningsThisWeek = feed.length;
   }
 
-  rows.sort((a, b) => b.depressionScore - a.depressionScore);
+  // Newest first.
+  feed.sort(
+    (a, b) =>
+      new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+  );
 
-  const criticalCount = rows.filter((r) => r.riskLevel === "critical").length;
-  const highCount = rows.filter((r) => r.riskLevel === "high").length;
   const weekDelta = screeningsThisWeek - screeningsLastWeek;
 
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard
-          icon={Users}
-          label="Total Patients"
-          value={rows.length}
-        />
+        <StatCard icon={Users} label="Total Patients" value={totalPatients} />
         <StatCard
           icon={AlertTriangle}
           label="Critical"
@@ -138,9 +118,7 @@ export default async function DashboardPage() {
           label="Screenings This Week"
           value={screeningsThisWeek}
           chip={
-            useApi && weekDelta !== 0 ? (
-              <DeltaChip delta={weekDelta} />
-            ) : null
+            useApi && weekDelta !== 0 ? <DeltaChip delta={weekDelta} /> : null
           }
         />
       </div>
@@ -156,90 +134,26 @@ export default async function DashboardPage() {
       )}
 
       <div className="bg-white rounded-2xl shadow-sm border border-slate-200">
-        <div className="px-4 sm:px-6 py-4 border-b border-slate-100">
-          <h2 className="font-heading text-lg font-semibold text-slate-900">
-            Patients
-          </h2>
-          <p className="text-sm text-slate-500 mt-0.5">
-            Sorted by depression score — critical first
-          </p>
-        </div>
-
-        <ul className="divide-y divide-slate-100">
-          {rows.map((row) => (
-            <PatientRow key={row.id} row={row} />
-          ))}
-        </ul>
-      </div>
-    </div>
-  );
-}
-
-function PatientRow({ row }: { row: Row }) {
-  const risk = RISK_CONFIG[row.riskLevel];
-  const isUnknown = !row.name || row.name.toLowerCase() === "unknown";
-
-  let TrendIcon = Minus;
-  let trendColor = "text-slate-400";
-  if (row.trend.length >= 2) {
-    if (row.delta < -0.02) {
-      TrendIcon = TrendingDown;
-      trendColor = "text-emerald-600";
-    } else if (row.delta > 0.02) {
-      TrendIcon = TrendingUp;
-      trendColor = "text-red-600";
-    }
-  }
-
-  return (
-    <li>
-      <Link
-        href={`/dashboard/patient/${row.id}`}
-        className="flex items-center gap-4 px-4 sm:px-6 py-3.5 hover:bg-slate-50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-400"
-      >
-        {/* Left: identity */}
-        <div className="flex items-center gap-3 min-w-0 flex-1">
-          <span
-            className={`w-2.5 h-2.5 rounded-full shrink-0 ${risk.dot}`}
-            aria-hidden
-          />
-          <div className="min-w-0">
-            <p
-              className={`font-medium truncate ${
-                isUnknown ? "italic text-slate-500" : "text-slate-900"
-              }`}
-            >
-              {isUnknown ? "Unknown caller" : row.name}
-            </p>
-            <p className="text-xs text-slate-500 flex items-center gap-1.5">
-              <Phone className="w-3 h-3" />
-              {row.phone}
+        <div className="px-4 sm:px-6 py-4 border-b border-slate-100 flex items-center justify-between gap-2">
+          <div>
+            <h2 className="font-heading text-lg font-semibold text-slate-900">
+              Recent Screenings
+            </h2>
+            <p className="text-sm text-slate-500 mt-0.5">
+              {feed.length} call{feed.length === 1 ? "" : "s"} — newest first
             </p>
           </div>
+          <Link
+            href="/dashboard/map"
+            className="hidden sm:inline-flex text-xs text-slate-500 hover:text-primary-700 transition-colors"
+          >
+            View on map →
+          </Link>
         </div>
 
-        {/* Middle: trend sparkline */}
-        <div className="hidden sm:block shrink-0" aria-hidden>
-          <Sparkline points={row.trend} color={risk.color} width={80} height={28} />
-        </div>
-
-        {/* Right: trend arrow + risk + score + relative time */}
-        <div className="flex items-center gap-3 shrink-0">
-          <TrendIcon className={`w-4 h-4 ${trendColor}`} aria-hidden />
-          <RiskPill risk={row.riskLevel} />
-          <span className="text-sm font-semibold text-slate-900 tabular-nums w-12 text-right">
-            {Math.round(row.depressionScore * 100)}%
-          </span>
-          {row.lastScreeningAt && (
-            <RelativeTime
-              value={row.lastScreeningAt}
-              className="hidden md:inline text-xs text-slate-400 tabular-nums w-16 text-right"
-            />
-          )}
-          <ChevronRight className="w-4 h-4 text-slate-400 shrink-0" />
-        </div>
-      </Link>
-    </li>
+        <ScreeningFeed feed={feed} pageSize={20} />
+      </div>
+    </div>
   );
 }
 
@@ -264,7 +178,9 @@ function StatCard({
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <p className={`text-xl font-bold tabular-nums ${accent ?? "text-slate-900"}`}>
+            <p
+              className={`text-xl font-bold tabular-nums ${accent ?? "text-slate-900"}`}
+            >
               {value}
             </p>
             {chip}

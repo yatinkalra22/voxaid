@@ -5,13 +5,13 @@ import { PrismaService } from '../prisma/prisma.service.js';
 export class PatientsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  /** All patients with their last 5 screenings, sorted by risk (critical first) */
+  /** All patients with their last 20 screenings, sorted by risk (critical first) */
   async findAll() {
     const patients = await this.prisma.patient.findMany({
       include: {
         screenings: {
           orderBy: { createdAt: 'desc' },
-          take: 5,
+          take: 20,
         },
       },
     });
