@@ -30,7 +30,7 @@ const STEPS = [
     icon: Brain,
     title: "Risk Classification",
     description:
-      "ML model scores depression, anxiety, and NCD risk. Action plan generated in the patient's language.",
+      "Our AI scores depression, anxiety, and NCD risk. Action plan generated in the patient's language.",
   },
   {
     icon: MapPin,

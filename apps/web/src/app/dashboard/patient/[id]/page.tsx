@@ -359,7 +359,6 @@ export default async function PatientDetailPage({
         <div className="mt-6">
           <ReferralButton
             screeningId={s.id}
-            riskLevel={s.riskLevel}
             patientPhone={patient.phone}
           />
         </div>

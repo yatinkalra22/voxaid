@@ -8,7 +8,6 @@ import type { RiskLevel } from "@/lib/mock-data";
 
 interface ReferralButtonProps {
   screeningId: string;
-  riskLevel: RiskLevel;
   patientPhone: string;
 }
 
@@ -22,7 +21,6 @@ interface CreatedReferral {
 
 export function ReferralButton({
   screeningId,
-  riskLevel,
   patientPhone,
 }: ReferralButtonProps) {
   const { user } = useUser();

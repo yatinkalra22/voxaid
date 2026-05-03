@@ -133,7 +133,7 @@ export default function StoryPage() {
             </div>
             <p>
               Every biomarker is flagged. Her pitch is low, her voice trembles
-              more than normal, she pauses frequently. The XGBoost classifier
+              more than normal, she pauses frequently. VoxAID&apos;s risk model
               returns a <strong>depression risk score of 82%</strong> —
               critical.
             </p>
@@ -143,7 +143,7 @@ export default function StoryPage() {
           <StoryBlock
             icon={Brain}
             label="The Action Plan"
-            title="Claude generates a plan Sunita can follow."
+            title="VoxAID drafts a plan Sunita can follow."
           >
             <p>
               Within seconds, an AI-generated action plan appears on
