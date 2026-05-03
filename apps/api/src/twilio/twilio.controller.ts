@@ -44,14 +44,21 @@ export class TwilioController {
     response.record({
       maxLength: 30,
       playBeep: true,
-      trim: 'trim-silence',
+      trim: 'do-not-trim',
       recordingStatusCallback: `${this.config.get<string>('API_BASE_URL')}/twilio/recording`,
       recordingStatusCallbackMethod: 'POST',
       recordingStatusCallbackEvent: ['completed'],
     });
 
-    // Fallback if caller doesn't speak
-    response.say('We did not receive a recording. Please try again.');
+    // After recording completes, thank and hang up
+    response.say(
+      {
+        voice: 'Polly.Aditi',
+        language: 'en-IN',
+      },
+      'Thank you. Your response has been recorded. A community health worker will follow up with you soon.',
+    );
+    response.hangup();
 
     res.type('text/xml');
     res.send(response.toString());
