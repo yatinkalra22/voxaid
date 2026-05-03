@@ -19,6 +19,7 @@ export interface TranscriptionJobData {
   source: 'ivr' | 'whatsapp';
   callSid?: string;
   from?: string;
+  name?: string;
 }
 
 /**
@@ -63,13 +64,18 @@ export class WhisperProcessor implements OnModuleInit, OnModuleDestroy {
           `ML result: score=${mlResult.depressionScore} risk=${mlResult.riskLevel}`,
         );
 
-        // Step 3: Find or create patient, then persist screening
-        const phone = job.data.from ?? 'unknown';
+        // Step 3: Find or create patient, then persist screening.
+        // - Known caller (from is set) → one patient row, many screenings.
+        // - Anonymous caller (no from) → unique row per call so they don't
+        //   all collapse into a single "unknown" patient.
+        const phone = job.data.from ?? `anon-${job.data.callSid ?? Date.now()}`;
+        const displayName = job.data.name ?? job.data.from ?? 'Anonymous Caller';
         const patient = await this.prisma.patient.upsert({
           where: { phone },
-          update: {},
+          // Update the name on a return call only when a fresh name was captured.
+          update: job.data.name ? { name: job.data.name } : {},
           create: {
-            name: phone, // placeholder — updated by CHW later
+            name: displayName,
             phone,
             language,
             assignedChwId: 'chw-demo-1',

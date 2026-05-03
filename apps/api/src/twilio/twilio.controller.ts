@@ -27,24 +27,62 @@ export class TwilioController {
     const from = req.body?.From ?? 'unknown';
     this.logger.log(`Incoming call from ${from}`);
 
-    const response = new twiml.VoiceResponse();
+    const apiBase = this.config.get<string>('API_BASE_URL');
+    const nameAction = `${apiBase}/twilio/name?from=${encodeURIComponent(from)}`;
 
-    // Brief pause so the caller is ready
+    const response = new twiml.VoiceResponse();
     response.pause({ length: 1 });
 
-    response.say(
-      {
-        voice: 'Polly.Aditi', // Hindi-accented English — works for demo
-        language: 'en-IN',
-      },
-      'Welcome to VoxAID. Please describe how you have been feeling over the past two weeks. Speak naturally for about 30 seconds.',
+    // Step 1: Ask for the caller's name. Gather buffers speech until they
+    // pause, then POSTs SpeechResult to /twilio/name. Recording follows
+    // there so the caller doesn't speak over the prompt.
+    const gather = response.gather({
+      input: ['speech'],
+      speechTimeout: 'auto',
+      timeout: 5,
+      action: nameAction,
+      method: 'POST',
+      language: 'en-IN',
+    });
+    gather.say(
+      { voice: 'Polly.Aditi', language: 'en-IN' },
+      'Welcome to VoxAID. Please say your name.',
     );
 
-    // Record up to 30 seconds of speech, then POST to /twilio/recording.
-    // Pass `from` via query string — recording callback is a separate webhook
-    // and Twilio doesn't include the caller's number in its payload.
+    // Fallback if no speech is detected — proceed without a name.
+    response.redirect({ method: 'POST' }, nameAction);
+
+    res.type('text/xml');
+    res.send(response.toString());
+  }
+
+  /**
+   * POST /twilio/name — Receives SpeechResult from the name <Gather>,
+   * thanks the caller by name, and starts the 30-second screening recording.
+   * Both `from` and `name` are threaded into the recording callback URL.
+   */
+  @Post('name')
+  handleNameAndRecord(@Req() req: Request, @Res() res: Response) {
+    const fromQuery = typeof req.query.from === 'string' ? req.query.from : undefined;
+    const from = fromQuery && fromQuery !== 'unknown' ? fromQuery : undefined;
+    const speech = String(req.body?.SpeechResult ?? '').trim();
+    // Twilio sometimes returns trailing punctuation on speech-to-text.
+    const name = speech.replace(/[.,!?]+$/, '').trim() || undefined;
+    this.logger.log(`Name capture: "${name ?? '(none)'}" from=${from ?? 'unknown'}`);
+
     const apiBase = this.config.get<string>('API_BASE_URL');
-    const recordingCallback = `${apiBase}/twilio/recording?from=${encodeURIComponent(from)}`;
+    const params = new URLSearchParams();
+    if (from) params.set('from', from);
+    if (name) params.set('name', name);
+    const recordingCallback = `${apiBase}/twilio/recording${params.toString() ? `?${params.toString()}` : ''}`;
+
+    const response = new twiml.VoiceResponse();
+    response.say(
+      { voice: 'Polly.Aditi', language: 'en-IN' },
+      name
+        ? `Thank you ${name}. After the beep, please describe how you have been feeling for the past two weeks.`
+        : 'After the beep, please describe how you have been feeling for the past two weeks.',
+    );
     response.record({
       maxLength: 30,
       playBeep: true,
@@ -53,14 +91,9 @@ export class TwilioController {
       recordingStatusCallbackMethod: 'POST',
       recordingStatusCallbackEvent: ['completed'],
     });
-
-    // After recording completes, thank and hang up
     response.say(
-      {
-        voice: 'Polly.Aditi',
-        language: 'en-IN',
-      },
-      'Thank you. Your response has been recorded. A community health worker will follow up with you soon.',
+      { voice: 'Polly.Aditi', language: 'en-IN' },
+      'Thank you. A community health worker will follow up with you soon.',
     );
     response.hangup();
 
@@ -77,10 +110,12 @@ export class TwilioController {
   async handleRecordingCallback(@Req() req: Request, @Res() res: Response) {
     const { RecordingUrl, RecordingSid, CallSid, RecordingDuration } = req.body;
     const fromQuery = typeof req.query.from === 'string' ? req.query.from : undefined;
+    const nameQuery = typeof req.query.name === 'string' ? req.query.name : undefined;
     const from = fromQuery && fromQuery !== 'unknown' ? fromQuery : undefined;
+    const name = nameQuery || undefined;
 
     this.logger.log(
-      `Recording ready: sid=${RecordingSid} call=${CallSid} from=${from ?? 'unknown'} duration=${RecordingDuration}s`,
+      `Recording ready: sid=${RecordingSid} call=${CallSid} from=${from ?? 'unknown'} name=${name ?? '(none)'} duration=${RecordingDuration}s`,
     );
     const audioUrl = `${RecordingUrl}.wav`;
     this.logger.log(`Audio URL: ${audioUrl}`);
@@ -91,6 +126,7 @@ export class TwilioController {
       source: 'ivr',
       callSid: CallSid,
       from,
+      name,
     } satisfies TranscriptionJobData);
 
     res.status(200).send('OK');
