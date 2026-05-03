@@ -150,8 +150,18 @@ export class WhisperProcessor implements OnModuleInit, OnModuleDestroy {
       speechRate: number;
     };
   }> {
+    // Twilio recording + WhatsApp media URLs are private — Basic Auth required.
+    const headers: Record<string, string> = {};
+    if (audioUrl.startsWith('https://api.twilio.com/')) {
+      const sid = this.config.get<string>('TWILIO_ACCOUNT_SID');
+      const token = this.config.get<string>('TWILIO_AUTH_TOKEN');
+      if (sid && token) {
+        headers.Authorization = `Basic ${Buffer.from(`${sid}:${token}`).toString('base64')}`;
+      }
+    }
+
     // Fetch the audio file
-    const audioRes = await fetch(audioUrl);
+    const audioRes = await fetch(audioUrl, { headers });
     if (!audioRes.ok) {
       throw new Error(`Failed to fetch audio for ML: ${audioRes.status}`);
     }

@@ -27,8 +27,17 @@ export class WhisperService {
   }> {
     this.logger.log(`Fetching audio from ${audioUrl}`);
 
-    // Fetch the audio file as a buffer
-    const response = await fetch(audioUrl);
+    // Twilio recording + WhatsApp media URLs are private — Basic Auth required.
+    const headers: Record<string, string> = {};
+    if (audioUrl.startsWith('https://api.twilio.com/')) {
+      const sid = this.config.get<string>('TWILIO_ACCOUNT_SID');
+      const token = this.config.get<string>('TWILIO_AUTH_TOKEN');
+      if (sid && token) {
+        headers.Authorization = `Basic ${Buffer.from(`${sid}:${token}`).toString('base64')}`;
+      }
+    }
+
+    const response = await fetch(audioUrl, { headers });
     if (!response.ok) {
       throw new Error(`Failed to fetch audio: ${response.status}`);
     }
