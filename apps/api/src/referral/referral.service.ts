@@ -3,10 +3,19 @@ import {
   Logger,
   NotFoundException,
   BadRequestException,
+  ForbiddenException,
 } from '@nestjs/common';
 import * as crypto from 'crypto';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { TtsService } from '../tts/tts.service.js';
+import { maskPhone } from '../lib/phone.js';
+
+// Outbound patient callbacks place real Twilio voice calls to real phone
+// numbers. For the public hackathon demo we keep the endpoint reachable but
+// short-circuit it here so a misconfigured client (or a curious judge) can
+// never trigger an actual call. Flip back to false once we have explicit
+// patient consent and on-call moderation in place.
+const PATIENT_CALLBACK_DISABLED = true;
 
 @Injectable()
 export class ReferralService {
@@ -103,6 +112,20 @@ export class ReferralService {
    * -> call out. Idempotent: returns the existing callSid if already triggered.
    */
   async triggerPatientCallback(referralId: string) {
+    if (PATIENT_CALLBACK_DISABLED) {
+      this.logger.log(
+        `Patient callback blocked (feature disabled for demo): referralId=${referralId}`,
+      );
+      throw new ForbiddenException({
+        ok: false,
+        error: {
+          code: 'CALLBACK_DISABLED',
+          message:
+            'Patient callback is disabled for the hackathon demo. Use the shareable referral link or print slip instead.',
+        },
+      });
+    }
+
     const referral = await this.prisma.referral.findUnique({
       where: { id: referralId },
       include: { patient: true },
@@ -169,11 +192,6 @@ export class ReferralService {
         return '1 month';
     }
   }
-}
-
-function maskPhone(phone: string): string {
-  if (phone.length <= 4) return phone;
-  return `${phone.slice(0, 3)}…${phone.slice(-4)}`;
 }
 
 function buildCallbackMessage(language: string, actionWindow: string): string {

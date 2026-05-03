@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef } from "react";
 import type { RiskLevel } from "@/lib/mock-data";
 import { RISK_CONFIG } from "@/lib/mock-data";
+import { maskPhone } from "@/lib/phone";
 
 function useLeafletCSS() {
   useEffect(() => {
@@ -80,8 +81,9 @@ export function PatientMap({ patients }: { patients: MapPatient[] }) {
         popupEl.appendChild(nameEl);
 
         const phoneEl = document.createElement("div");
-        phoneEl.style.cssText = "font-size:12px;color:#64748b;margin-top:2px;";
-        phoneEl.textContent = patient.phone;
+        phoneEl.style.cssText =
+          "font-size:12px;color:#64748b;margin-top:2px;font-variant-numeric:tabular-nums;";
+        phoneEl.textContent = maskPhone(patient.phone);
         popupEl.appendChild(phoneEl);
 
         const badgeRow = document.createElement("div");

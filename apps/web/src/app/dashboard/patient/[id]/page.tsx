@@ -16,6 +16,7 @@ import {
 import { getPatient, getAudioUrl } from "@/lib/api";
 import type { Biomarkers } from "@/lib/api";
 import { MOCK_PATIENTS, RISK_CONFIG } from "@/lib/mock-data";
+import { maskPhone } from "@/lib/phone";
 import { ReferralButton } from "@/components/referral-button";
 import { ScoreGauge } from "@/components/score-gauge";
 import { AudioPlayer } from "@/components/audio-player";
@@ -266,9 +267,12 @@ export default async function PatientDetailPage({
               {displayName}
             </h1>
             <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2 text-sm text-slate-500">
-              <span className="inline-flex items-center gap-1.5">
+              <span
+                className="inline-flex items-center gap-1.5 font-mono tabular-nums"
+                title="Patient number is masked for privacy — only country code and last 4 digits are shown."
+              >
                 <Phone className="w-3.5 h-3.5" />
-                {patient.phone}
+                {maskPhone(patient.phone)}
               </span>
               <span className="inline-flex items-center gap-1.5">
                 <Globe className="w-3.5 h-3.5" />

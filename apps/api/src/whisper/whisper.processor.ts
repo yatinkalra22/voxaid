@@ -194,24 +194,17 @@ export class WhisperProcessor implements OnModuleInit, OnModuleDestroy {
         });
         this.logger.log(`Screening saved: ${screening.id}`);
 
-        // Step 6: TTS callback for high/critical risk patients
+        // Step 6: TTS callback for high/critical risk patients — disabled
+        // for the hackathon demo. We never want a stranger's number on a
+        // demo screen to receive an unsolicited automated call. Re-enable
+        // once consent capture and on-call moderation are in place.
         if (
           phone !== 'unknown' &&
           (mlResult.riskLevel === 'high' || mlResult.riskLevel === 'critical')
         ) {
-          try {
-            const { callSid } = await this.ttsService.speakAndCall({
-              text: actionPlan.actionPlan,
-              language,
-              patientPhone: phone,
-            });
-            this.logger.log(`Patient callback initiated: callSid=${callSid}`);
-          } catch (err) {
-            // Non-fatal — screening is already saved
-            this.logger.warn(
-              `TTS callback failed: ${err instanceof Error ? err.message : String(err)}`,
-            );
-          }
+          this.logger.log(
+            `Patient callback skipped (disabled for demo): screening=${screening.id} risk=${mlResult.riskLevel}`,
+          );
         }
 
         return { text, language, screeningId: screening.id };

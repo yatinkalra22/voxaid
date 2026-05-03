@@ -5,10 +5,11 @@ import {
   Check,
   Copy,
   ExternalLink,
-  Loader2,
+  Lock,
   PhoneOutgoing,
   Printer,
   ShieldCheck,
+  X,
 } from "lucide-react";
 import { RiskPill } from "./risk-pill";
 import { RISK_CONFIG, type RiskLevel } from "@/lib/mock-data";
@@ -30,19 +31,18 @@ export function ReferralConfirmation({
 }: ReferralConfirmationProps) {
   const [shareUrl, setShareUrl] = useState<string>("");
   const [copied, setCopied] = useState(false);
-  const [callStatus, setCallStatus] = useState<
-    "idle" | "calling" | "called" | "error"
-  >("idle");
-  const [callError, setCallError] = useState<string | null>(null);
+  const [showDisabledModal, setShowDisabledModal] = useState(false);
 
   useEffect(() => {
     setShareUrl(`${window.location.origin}/r/${shareToken}`);
   }, [shareToken]);
 
   const cfg = RISK_CONFIG[riskLevel];
-  const canCallPatient =
+  // Show the call action whenever there's a phone on file (even if masked) so
+  // judges can see the feature; clicking opens the "disabled for demo" modal.
+  const hasPatientPhone =
     !!patientPhone &&
-    patientPhone.startsWith("+") &&
+    patientPhone !== "Anonymous" &&
     !patientPhone.startsWith("anon-");
 
   async function copy() {
@@ -52,26 +52,6 @@ export function ReferralConfirmation({
       setTimeout(() => setCopied(false), 1800);
     } catch {
       // Older browsers / iframe restrictions — pre-select the input as fallback.
-    }
-  }
-
-  async function callPatient() {
-    setCallStatus("calling");
-    setCallError(null);
-    try {
-      const res = await fetch(`/api/referral/${referralId}/callback`, {
-        method: "POST",
-      });
-      const json = await res.json().catch(() => null);
-      if (!res.ok || !json?.ok) {
-        setCallError(json?.error?.code ?? `HTTP ${res.status}`);
-        setCallStatus("error");
-        return;
-      }
-      setCallStatus("called");
-    } catch (err) {
-      setCallError(err instanceof Error ? err.message : "Network error");
-      setCallStatus("error");
     }
   }
 
@@ -165,33 +145,100 @@ export function ReferralConfirmation({
           <Printer className="w-3.5 h-3.5" />
           Print slip
         </a>
-        {canCallPatient && (
+        {hasPatientPhone && (
           <button
             type="button"
-            onClick={callPatient}
-            disabled={callStatus === "calling" || callStatus === "called"}
-            className="inline-flex items-center gap-1.5 px-3 py-2 bg-primary-700 text-white rounded-lg text-sm font-medium hover:bg-primary-800 transition-colors disabled:opacity-70"
+            onClick={() => setShowDisabledModal(true)}
+            aria-haspopup="dialog"
+            aria-expanded={showDisabledModal}
+            title="Patient callback is disabled for the hackathon demo"
+            className="inline-flex items-center gap-1.5 px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium text-slate-500 hover:bg-slate-50 transition-colors"
           >
-            {callStatus === "calling" ? (
-              <Loader2 className="w-3.5 h-3.5 animate-spin" />
-            ) : callStatus === "called" ? (
-              <Check className="w-3.5 h-3.5" />
-            ) : (
-              <PhoneOutgoing className="w-3.5 h-3.5" />
-            )}
-            {callStatus === "calling"
-              ? "Calling patient..."
-              : callStatus === "called"
-                ? "Patient called"
-                : "Call patient back"}
+            <Lock className="w-3.5 h-3.5" />
+            <PhoneOutgoing className="w-3.5 h-3.5" />
+            Call patient back
           </button>
         )}
       </div>
 
-      {callError && (
-        <p className="text-xs text-red-600">
-          Callback failed: {callError}
-        </p>
+      {showDisabledModal && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="callback-disabled-title"
+          className="fixed inset-0 z-50 flex items-center justify-center px-4"
+          onClick={() => setShowDisabledModal(false)}
+        >
+          <div
+            aria-hidden="true"
+            className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm"
+          />
+          <div
+            className="relative w-full max-w-md bg-white rounded-2xl shadow-xl border border-slate-200 p-5"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-start gap-3">
+              <div className="w-9 h-9 rounded-xl bg-amber-50 ring-1 ring-amber-200 flex items-center justify-center shrink-0">
+                <Lock className="w-4 h-4 text-amber-700" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-start justify-between gap-2">
+                  <h3
+                    id="callback-disabled-title"
+                    className="font-heading font-semibold text-slate-900 text-base leading-tight"
+                  >
+                    Patient callback is disabled for this demo
+                  </h3>
+                  <button
+                    type="button"
+                    onClick={() => setShowDisabledModal(false)}
+                    aria-label="Close"
+                    className="p-1 -mr-1 -mt-1 text-slate-400 hover:text-slate-700 rounded-lg"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+                <p className="mt-2 text-sm text-slate-600 leading-relaxed">
+                  For the hackathon we&rsquo;ve turned off the automated
+                  outbound call to patients. Real numbers on a public demo
+                  shouldn&rsquo;t receive an unsolicited voice call without
+                  consent capture and on-call moderation in place.
+                </p>
+                <p className="mt-3 text-sm text-slate-600 leading-relaxed">
+                  Please use{" "}
+                  <span className="font-semibold text-slate-800">
+                    Copy referral link
+                  </span>{" "}
+                  or{" "}
+                  <span className="font-semibold text-slate-800">
+                    Open in WhatsApp
+                  </span>{" "}
+                  above to share the referral with the clinic.
+                </p>
+                <div className="mt-4 flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowDisabledModal(false);
+                      void copy();
+                    }}
+                    className="inline-flex items-center gap-1.5 px-3 py-2 bg-primary-700 text-white rounded-lg text-sm font-medium hover:bg-primary-800 transition-colors"
+                  >
+                    <Copy className="w-3.5 h-3.5" />
+                    Copy referral link
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowDisabledModal(false)}
+                    className="px-3 py-2 text-sm font-medium text-slate-600 hover:text-slate-900 rounded-lg"
+                  >
+                    Close
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

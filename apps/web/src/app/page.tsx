@@ -223,6 +223,91 @@ export default function Home() {
         </div>
       </section>
 
+      {/* Why VoxAID */}
+      <section className="py-20 px-4 sm:px-6">
+        <div className="max-w-5xl mx-auto">
+          <div className="text-center mb-12">
+            <h2 className="font-heading text-3xl sm:text-4xl font-bold text-slate-900">
+              Why VoxAID
+            </h2>
+            <p className="mt-4 text-slate-600 max-w-2xl mx-auto">
+              Voice-AI screening already exists — for the developed world.
+              Every existing tool assumes a smartphone, an internet connection,
+              and English. None of them reach the patients who need screening
+              the most.
+            </p>
+          </div>
+
+          <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+            <table className="w-full text-left text-sm">
+              <thead className="bg-slate-50 text-slate-700">
+                <tr>
+                  <th className="px-4 sm:px-6 py-3 font-semibold">Tool</th>
+                  <th className="px-4 sm:px-6 py-3 font-semibold">Built for</th>
+                  <th className="px-4 sm:px-6 py-3 font-semibold hidden sm:table-cell">
+                    Why it can&apos;t reach the bottom 4B
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 text-slate-600">
+                <tr>
+                  <td className="px-4 sm:px-6 py-4 font-medium text-slate-900">
+                    Kintsugi
+                  </td>
+                  <td className="px-4 sm:px-6 py-4">US payers + clinicians</td>
+                  <td className="px-4 sm:px-6 py-4 hidden sm:table-cell">
+                    Smartphone-only, English-only, EHR-integrated
+                  </td>
+                </tr>
+                <tr>
+                  <td className="px-4 sm:px-6 py-4 font-medium text-slate-900">
+                    Ellipsis
+                  </td>
+                  <td className="px-4 sm:px-6 py-4">US clinical workflows</td>
+                  <td className="px-4 sm:px-6 py-4 hidden sm:table-cell">
+                    FDA-track, closed ecosystem, payer-led
+                  </td>
+                </tr>
+                <tr>
+                  <td className="px-4 sm:px-6 py-4 font-medium text-slate-900">
+                    Sonde
+                  </td>
+                  <td className="px-4 sm:px-6 py-4">DTC wellness apps</td>
+                  <td className="px-4 sm:px-6 py-4 hidden sm:table-cell">
+                    Smartphone-only, US/UK only
+                  </td>
+                </tr>
+                <tr>
+                  <td className="px-4 sm:px-6 py-4 font-medium text-slate-900">
+                    Ada / Infermedica
+                  </td>
+                  <td className="px-4 sm:px-6 py-4">Symptom checkers</td>
+                  <td className="px-4 sm:px-6 py-4 hidden sm:table-cell">
+                    Requires literacy, smartphone, and a data plan
+                  </td>
+                </tr>
+                <tr className="bg-primary-50/40">
+                  <td className="px-4 sm:px-6 py-4 font-semibold text-primary-700">
+                    VoxAID
+                  </td>
+                  <td className="px-4 sm:px-6 py-4 font-medium text-slate-900">
+                    CHWs in LMICs
+                  </td>
+                  <td className="px-4 sm:px-6 py-4 hidden sm:table-cell font-medium text-slate-900">
+                    Feature phone, 99+ languages, $0.03/screening
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <p className="mt-8 text-center text-sm text-slate-500 max-w-2xl mx-auto">
+            VoxAID is the first to combine voice biomarkers, IVR + WhatsApp,
+            multilingual action plans, and a CHW workflow in one pipeline.
+          </p>
+        </div>
+      </section>
+
       {/* Footer */}
       <footer className="py-12 px-4 sm:px-6 border-t border-slate-100">
         <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">

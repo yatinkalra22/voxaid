@@ -11,7 +11,11 @@
  */
 export function maskPhone(phone: string | null | undefined): string {
   if (!phone) return "Anonymous";
+  if (phone === "Anonymous") return phone;
   if (phone === "unknown" || phone.startsWith("anon-")) return "Anonymous";
+  // Idempotent: API now masks at the boundary, so a value that already
+  // contains the bullet character is returned unchanged.
+  if (phone.includes("•")) return phone;
   if (!phone.startsWith("+")) return phone; // unexpected shape — show as-is
 
   // Pull off "+CC" — common country codes are 1-3 digits, then any non-digit
