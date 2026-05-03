@@ -28,75 +28,45 @@ export class TwilioController {
     this.logger.log(`Incoming call from ${from}`);
 
     const apiBase = this.config.get<string>('API_BASE_URL');
-    const nameAction = `${apiBase}/twilio/name?from=${encodeURIComponent(from)}`;
+    const recordingCallback = `${apiBase}/twilio/recording?from=${encodeURIComponent(from)}`;
+    // <Record> defaults its action to the current URL — without an explicit
+    // action, after the recording ends Twilio POSTs back to /twilio/voice
+    // and the IVR loops. Point action at /twilio/done to end the call cleanly.
+    const doneAction = `${apiBase}/twilio/done`;
 
     const response = new twiml.VoiceResponse();
     response.pause({ length: 1 });
-
-    // Step 1: Ask for the caller's name. Gather buffers speech until they
-    // pause, then POSTs SpeechResult to /twilio/name. Recording follows
-    // there so the caller doesn't speak over the prompt.
-    const gather = response.gather({
-      input: ['speech'],
-      speechTimeout: 'auto',
-      timeout: 5,
-      action: nameAction,
-      method: 'POST',
-      language: 'en-IN',
-    });
-    gather.say(
+    response.say(
       { voice: 'Polly.Aditi', language: 'en-IN' },
-      'Welcome to VoxAID. Please say your name.',
+      'Welcome to VoxAID. After the beep, please say your name and describe how you have been feeling for the past two weeks.',
     );
-
-    // Fallback if no speech is detected — proceed without a name.
-    response.redirect({ method: 'POST' }, nameAction);
+    response.record({
+      maxLength: 30,
+      playBeep: true,
+      trim: 'do-not-trim',
+      action: doneAction,
+      method: 'POST',
+      recordingStatusCallback: recordingCallback,
+      recordingStatusCallbackMethod: 'POST',
+      recordingStatusCallbackEvent: ['completed'],
+    });
 
     res.type('text/xml');
     res.send(response.toString());
   }
 
   /**
-   * POST /twilio/name — Receives SpeechResult from the name <Gather>,
-   * thanks the caller by name, and starts the 30-second screening recording.
-   * Both `from` and `name` are threaded into the recording callback URL.
+   * POST /twilio/done — Reached when <Record>'s action fires after the
+   * recording completes. Thanks the caller and hangs up.
    */
-  @Post('name')
-  handleNameAndRecord(@Req() req: Request, @Res() res: Response) {
-    const fromQuery = typeof req.query.from === 'string' ? req.query.from : undefined;
-    const from = fromQuery && fromQuery !== 'unknown' ? fromQuery : undefined;
-    const speech = String(req.body?.SpeechResult ?? '').trim();
-    // Twilio sometimes returns trailing punctuation on speech-to-text.
-    const name = speech.replace(/[.,!?]+$/, '').trim() || undefined;
-    this.logger.log(`Name capture: "${name ?? '(none)'}" from=${from ?? 'unknown'}`);
-
-    const apiBase = this.config.get<string>('API_BASE_URL');
-    const params = new URLSearchParams();
-    if (from) params.set('from', from);
-    if (name) params.set('name', name);
-    const recordingCallback = `${apiBase}/twilio/recording${params.toString() ? `?${params.toString()}` : ''}`;
-
+  @Post('done')
+  handleDone(@Req() _req: Request, @Res() res: Response) {
     const response = new twiml.VoiceResponse();
-    response.say(
-      { voice: 'Polly.Aditi', language: 'en-IN' },
-      name
-        ? `Thank you ${name}. After the beep, please describe how you have been feeling for the past two weeks.`
-        : 'After the beep, please describe how you have been feeling for the past two weeks.',
-    );
-    response.record({
-      maxLength: 30,
-      playBeep: true,
-      trim: 'do-not-trim',
-      recordingStatusCallback: recordingCallback,
-      recordingStatusCallbackMethod: 'POST',
-      recordingStatusCallbackEvent: ['completed'],
-    });
     response.say(
       { voice: 'Polly.Aditi', language: 'en-IN' },
       'Thank you. A community health worker will follow up with you soon.',
     );
     response.hangup();
-
     res.type('text/xml');
     res.send(response.toString());
   }
@@ -110,23 +80,21 @@ export class TwilioController {
   async handleRecordingCallback(@Req() req: Request, @Res() res: Response) {
     const { RecordingUrl, RecordingSid, CallSid, RecordingDuration } = req.body;
     const fromQuery = typeof req.query.from === 'string' ? req.query.from : undefined;
-    const nameQuery = typeof req.query.name === 'string' ? req.query.name : undefined;
     const from = fromQuery && fromQuery !== 'unknown' ? fromQuery : undefined;
-    const name = nameQuery || undefined;
 
     this.logger.log(
-      `Recording ready: sid=${RecordingSid} call=${CallSid} from=${from ?? 'unknown'} name=${name ?? '(none)'} duration=${RecordingDuration}s`,
+      `Recording ready: sid=${RecordingSid} call=${CallSid} from=${from ?? 'unknown'} duration=${RecordingDuration}s`,
     );
     const audioUrl = `${RecordingUrl}.wav`;
     this.logger.log(`Audio URL: ${audioUrl}`);
 
-    // Enqueue for async Whisper transcription
+    // Enqueue for async Whisper transcription. Name is extracted from the
+    // transcript in the worker (combined prompt now records both).
     await this.transcriptionQueue.add('transcribe', {
       audioUrl,
       source: 'ivr',
       callSid: CallSid,
       from,
-      name,
     } satisfies TranscriptionJobData);
 
     res.status(200).send('OK');

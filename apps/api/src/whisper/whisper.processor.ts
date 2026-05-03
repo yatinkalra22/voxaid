@@ -22,6 +22,33 @@ export interface TranscriptionJobData {
   name?: string;
 }
 
+const NAME_INTROS = /(?:my name is|i am|i'm|this is|name is|call me)\s+([a-z][a-z'\-]*(?:\s+[a-z][a-z'\-]*)?)/i;
+const FILLER_FIRST_WORDS = new Set(['i', 'hi', 'hello', 'hey', 'so', 'um', 'uh', 'well', 'okay', 'ok', 'yeah', 'yes', 'no']);
+
+function titleCase(s: string): string {
+  return s
+    .toLowerCase()
+    .split(/\s+/)
+    .map((w) => (w ? w[0].toUpperCase() + w.slice(1) : w))
+    .join(' ');
+}
+
+/** Extract a likely caller name from the start of a Whisper transcript. */
+function extractNameFromTranscript(transcript: string): string | undefined {
+  if (!transcript) return undefined;
+  const t = transcript.trim().replace(/^[^a-z]+/i, '');
+
+  const m = t.match(NAME_INTROS);
+  if (m?.[1]) return titleCase(m[1].trim());
+
+  // Fallback: first 1-2 words if they don't look like fillers.
+  const words = t.split(/[\s,.!?]+/).filter(Boolean).slice(0, 2);
+  if (!words.length) return undefined;
+  if (FILLER_FIRST_WORDS.has(words[0].toLowerCase())) return undefined;
+  if (!/^[a-z][a-z'-]+$/i.test(words[0])) return undefined;
+  return titleCase(words[0]);
+}
+
 /**
  * BullMQ worker that processes the full screening pipeline:
  * Whisper ASR → ML biomarkers → Claude action plan → DB persist → TTS callback
@@ -65,15 +92,19 @@ export class WhisperProcessor implements OnModuleInit, OnModuleDestroy {
         );
 
         // Step 3: Find or create patient, then persist screening.
+        // IVR uses a single combined prompt ("say your name and how you've been
+        // feeling"), so we extract the name from the transcript itself rather
+        // than from a separate Gather step.
+        const extractedName = job.data.name ?? extractNameFromTranscript(text);
         // - Known caller (from is set) → one patient row, many screenings.
         // - Anonymous caller (no from) → unique row per call so they don't
         //   all collapse into a single "unknown" patient.
         const phone = job.data.from ?? `anon-${job.data.callSid ?? Date.now()}`;
-        const displayName = job.data.name ?? job.data.from ?? 'Anonymous Caller';
+        const displayName = extractedName ?? job.data.from ?? 'Anonymous Caller';
         const patient = await this.prisma.patient.upsert({
           where: { phone },
           // Update the name on a return call only when a fresh name was captured.
-          update: job.data.name ? { name: job.data.name } : {},
+          update: extractedName ? { name: extractedName } : {},
           create: {
             name: displayName,
             phone,
@@ -81,6 +112,7 @@ export class WhisperProcessor implements OnModuleInit, OnModuleDestroy {
             assignedChwId: 'chw-demo-1',
           },
         });
+        this.logger.log(`Patient: id=${patient.id} name="${patient.name}" phone="${patient.phone}"`);
 
         // Step 4: Generate action plan via Claude
         const actionPlan = await this.claudeService.generateActionPlan({
