@@ -17,6 +17,7 @@ model Patient {
   createdAt   DateTime    @default(now()) @map("created_at")
   updatedAt   DateTime    @updatedAt @map("updated_at")
   screenings  Screening[]
+  referrals   Referral[]
 
   @@map("patients")
 }
@@ -42,8 +43,33 @@ model Screening {
   source          String    @default("ivr") // ivr | whatsapp
   callSid         String?   @map("call_sid")
   createdAt       DateTime  @default(now()) @map("created_at")
+  referrals       Referral[]
 
   @@index([patientId])
   @@index([depressionRisk])
   @@map("screenings")
+}
+
+/// CHW-initiated referral. Persistent record + signed share token; the
+/// CHW distributes the share URL through whatever channel they already use
+/// (WhatsApp, print, etc.). VoxAID does not assume the clinic's channel.
+model Referral {
+  id                 String    @id @default(cuid())
+  screeningId        String    @map("screening_id")
+  screening          Screening @relation(fields: [screeningId], references: [id])
+  patientId          String    @map("patient_id")
+  patient            Patient   @relation(fields: [patientId], references: [id])
+  chwName            String    @map("chw_name")
+  riskLevel          RiskLevel @map("risk_level")
+  depressionScore    Float     @map("depression_score")
+  summary            String
+  actionWindow       String    @map("action_window")
+  shareToken         String    @unique @map("share_token")
+  patientCallbackSid String?   @map("patient_callback_sid")
+  patientCallbackAt  DateTime? @map("patient_callback_at")
+  createdAt          DateTime  @default(now()) @map("created_at")
+
+  @@index([patientId])
+  @@index([createdAt])
+  @@map("referrals")
 }

@@ -1,84 +1,160 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import { Twilio } from 'twilio';
-
-interface ReferralInput {
-  patientName: string;
-  patientPhone: string;
-  riskLevel: string;
-  depressionScore: number;
-  summary: string;
-  clinicPhone: string;
-  clinicName: string;
-  chwName: string;
-}
+import {
+  Injectable,
+  Logger,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
+import * as crypto from 'crypto';
+import { PrismaService } from '../prisma/prisma.service.js';
+import { TtsService } from '../tts/tts.service.js';
 
 @Injectable()
 export class ReferralService {
   private readonly logger = new Logger(ReferralService.name);
-  private readonly twilio: Twilio;
 
-  constructor(private readonly config: ConfigService) {
-    this.twilio = new Twilio(
-      this.config.get<string>('TWILIO_ACCOUNT_SID'),
-      this.config.get<string>('TWILIO_AUTH_TOKEN'),
-    );
-  }
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly tts: TtsService,
+  ) {}
 
   /**
-   * Send SMS referral to clinic admin with patient details.
-   * Closes the loop: screening -> action plan -> clinic referral.
-   * https://www.twilio.com/docs/messaging/api/message-resource
+   * Create a referral from an existing screening. Generates a public share
+   * token the CHW can paste into whatever channel they already use
+   * (WhatsApp, print, etc.). VoxAID does not assume the clinic's channel.
    */
-  async referToClinic(input: ReferralInput): Promise<{ messageSid: string }> {
-    const fromNumber = this.config.getOrThrow<string>('TWILIO_PHONE_NUMBER');
+  async createReferral(input: { screeningId: string; chwName: string }) {
+    const screening = await this.prisma.screening.findUnique({
+      where: { id: input.screeningId },
+      include: { patient: true },
+    });
+    if (!screening) {
+      throw new NotFoundException({
+        ok: false,
+        error: { code: 'SCREENING_NOT_FOUND' },
+      });
+    }
+    if (!screening.depressionRisk || screening.depressionScore === null) {
+      throw new BadRequestException({
+        ok: false,
+        error: { code: 'INCOMPLETE_SCREENING' },
+      });
+    }
 
-    const body = [
-      `[VoxAID REFERRAL - ${input.riskLevel.toUpperCase()}]`,
-      ``,
-      `Patient: ${input.patientName}`,
-      `Phone: ${input.patientPhone}`,
-      `Risk: ${input.riskLevel} (${(input.depressionScore * 100).toFixed(0)}%)`,
-      `Summary: ${input.summary}`,
-      ``,
-      `Referred by: ${input.chwName}`,
-      `Action: Please schedule assessment within ${this.getTimeframe(input.riskLevel)}.`,
-      ``,
-      `— VoxAID Automated Referral`,
-    ].join('\n');
+    const shareToken = crypto.randomBytes(16).toString('base64url');
+    const actionWindow = this.getTimeframe(screening.depressionRisk);
+
+    const referral = await this.prisma.referral.create({
+      data: {
+        screeningId: screening.id,
+        patientId: screening.patientId,
+        chwName: input.chwName,
+        riskLevel: screening.depressionRisk,
+        depressionScore: screening.depressionScore,
+        summary: (screening.actionPlan ?? '').slice(0, 1000),
+        actionWindow,
+        shareToken,
+      },
+    });
 
     this.logger.log(
-      `Sending referral SMS to ${input.clinicName} (${input.clinicPhone}) for ${input.patientName}`,
+      `Referral ${referral.id} created for ${screening.patient.name} by ${input.chwName}`,
     );
+    return referral;
+  }
 
-    const message = await this.twilio.messages.create({
-      to: input.clinicPhone,
-      from: fromNumber,
-      body,
+  /** Public read by share token. Returns redacted shape for the /r/<token> page. */
+  async getByToken(token: string) {
+    const referral = await this.prisma.referral.findUnique({
+      where: { shareToken: token },
+      include: { patient: true, screening: true },
     });
+    if (!referral) {
+      throw new NotFoundException({
+        ok: false,
+        error: { code: 'REFERRAL_NOT_FOUND' },
+      });
+    }
 
-    this.logger.log(`Referral SMS sent: sid=${message.sid}`);
+    // Redact: first name + masked phone only.
+    const firstName =
+      referral.patient.name.split(/\s+/)[0] || referral.patient.name;
+    const maskedPhone = maskPhone(referral.patient.phone);
 
-    return { messageSid: message.sid };
+    return {
+      id: referral.id,
+      createdAt: referral.createdAt,
+      riskLevel: referral.riskLevel,
+      depressionScore: referral.depressionScore,
+      summary: referral.summary,
+      actionWindow: referral.actionWindow,
+      chwName: referral.chwName,
+      patient: {
+        firstName,
+        maskedPhone,
+        language: referral.patient.language,
+      },
+      screeningAt: referral.screening.createdAt,
+    };
   }
 
   /**
-   * Send confirmation SMS to the CHW that referral was sent.
+   * Place an outbound TTS call to the patient telling them they've been
+   * referred. Closes the loop on the demo: call in -> screen -> action plan
+   * -> call out. Idempotent: returns the existing callSid if already triggered.
    */
-  async notifyChw(input: {
-    chwPhone: string;
-    patientName: string;
-    clinicName: string;
-  }): Promise<void> {
-    const fromNumber = this.config.getOrThrow<string>('TWILIO_PHONE_NUMBER');
+  async triggerPatientCallback(referralId: string) {
+    const referral = await this.prisma.referral.findUnique({
+      where: { id: referralId },
+      include: { patient: true },
+    });
+    if (!referral) {
+      throw new NotFoundException({
+        ok: false,
+        error: { code: 'REFERRAL_NOT_FOUND' },
+      });
+    }
+    if (referral.patientCallbackSid) {
+      return {
+        callSid: referral.patientCallbackSid,
+        triggeredAt: referral.patientCallbackAt,
+        alreadyTriggered: true,
+      };
+    }
+    if (
+      !referral.patient.phone ||
+      !referral.patient.phone.startsWith('+') ||
+      referral.patient.phone.startsWith('anon-')
+    ) {
+      throw new BadRequestException({
+        ok: false,
+        error: { code: 'PATIENT_PHONE_UNREACHABLE' },
+      });
+    }
 
-    await this.twilio.messages.create({
-      to: input.chwPhone,
-      from: fromNumber,
-      body: `[VoxAID] Referral sent for ${input.patientName} to ${input.clinicName}. They will be contacted for an appointment.`,
+    const message = buildCallbackMessage(
+      referral.patient.language,
+      referral.actionWindow,
+    );
+
+    const { callSid } = await this.tts.speakAndCall({
+      text: message,
+      language: referral.patient.language,
+      patientPhone: referral.patient.phone,
     });
 
-    this.logger.log(`CHW notification sent to ${input.chwPhone}`);
+    const updated = await this.prisma.referral.update({
+      where: { id: referralId },
+      data: { patientCallbackSid: callSid, patientCallbackAt: new Date() },
+    });
+
+    this.logger.log(
+      `Referral ${referralId} callback fired: callSid=${callSid}`,
+    );
+    return {
+      callSid,
+      triggeredAt: updated.patientCallbackAt,
+      alreadyTriggered: false,
+    };
   }
 
   private getTimeframe(riskLevel: string): string {
@@ -93,4 +169,20 @@ export class ReferralService {
         return '1 month';
     }
   }
+}
+
+function maskPhone(phone: string): string {
+  if (phone.length <= 4) return phone;
+  return `${phone.slice(0, 3)}…${phone.slice(-4)}`;
+}
+
+function buildCallbackMessage(language: string, actionWindow: string): string {
+  const lang = (language || 'en').toLowerCase();
+  if (lang.startsWith('hi')) {
+    return `नमस्ते, यह VoxAID है। आपको अपने स्थानीय क्लिनिक के लिए रेफर किया गया है। ${actionWindow} के भीतर फॉलो-अप की उम्मीद करें।`;
+  }
+  if (lang.startsWith('es')) {
+    return `Hola, le habla VoxAID. Ha sido referido a su clínica local. Espere un seguimiento dentro de ${actionWindow}.`;
+  }
+  return `Hello, this is VoxAID. You have been referred to your local health clinic. Please expect a follow-up within ${actionWindow}.`;
 }

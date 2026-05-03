@@ -1,85 +1,96 @@
 "use client";
 
 import { useState } from "react";
-import { Send, Check, Loader2 } from "lucide-react";
+import { useUser } from "@clerk/nextjs";
+import { Send, Loader2 } from "lucide-react";
+import { ReferralConfirmation } from "./referral-confirmation";
+import type { RiskLevel } from "@/lib/mock-data";
 
 interface ReferralButtonProps {
-  patientName: string;
+  screeningId: string;
+  riskLevel: RiskLevel;
   patientPhone: string;
-  riskLevel: string;
-  depressionScore: number;
-  actionPlan: string;
+}
+
+interface CreatedReferral {
+  referralId: string;
+  shareToken: string;
+  actionWindow: string;
+  riskLevel: RiskLevel;
+  createdAt: string;
 }
 
 export function ReferralButton({
-  patientName,
-  patientPhone,
+  screeningId,
   riskLevel,
-  depressionScore,
-  actionPlan,
+  patientPhone,
 }: ReferralButtonProps) {
-  const [status, setStatus] = useState<"idle" | "sending" | "sent" | "error">(
-    "idle"
-  );
+  const { user } = useUser();
+  const [status, setStatus] = useState<"idle" | "sending" | "error">("idle");
+  const [created, setCreated] = useState<CreatedReferral | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   async function handleRefer() {
     setStatus("sending");
+    setErrorMessage(null);
     try {
+      const chwName =
+        user?.fullName?.trim() ||
+        user?.firstName?.trim() ||
+        user?.username ||
+        "CHW";
+
       const res = await fetch("/api/referral", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          patientName,
-          patientPhone,
-          riskLevel,
-          depressionScore,
-          summary: actionPlan.slice(0, 500),
-          clinicName: "PHC District Hospital",
-          clinicPhone: "+15005550006", // Twilio test number for demo
-          chwName: "Demo CHW",
-        }),
+        body: JSON.stringify({ screeningId, chwName }),
       });
 
-      if (res.ok) {
-        setStatus("sent");
-      } else {
+      const json = await res.json().catch(() => null);
+      if (!res.ok || !json?.ok) {
+        setErrorMessage(json?.error?.code ?? `HTTP ${res.status}`);
         setStatus("error");
-        setTimeout(() => setStatus("idle"), 3000);
+        return;
       }
-    } catch {
+      setCreated(json.data as CreatedReferral);
+      setStatus("idle");
+    } catch (err) {
+      setErrorMessage(err instanceof Error ? err.message : "Network error");
       setStatus("error");
-      setTimeout(() => setStatus("idle"), 3000);
     }
   }
 
-  if (status === "sent") {
+  if (created) {
     return (
-      <button
-        disabled
-        className="inline-flex items-center justify-center gap-2 bg-emerald-600 text-white font-medium px-5 py-2.5 rounded-xl shadow-sm"
-      >
-        <Check className="w-4 h-4" aria-hidden="true" />
-        Referral Sent
-      </button>
+      <ReferralConfirmation
+        referralId={created.referralId}
+        shareToken={created.shareToken}
+        actionWindow={created.actionWindow}
+        riskLevel={created.riskLevel}
+        patientPhone={patientPhone}
+      />
     );
   }
 
   return (
-    <button
-      onClick={handleRefer}
-      disabled={status === "sending"}
-      className="inline-flex items-center justify-center gap-2 bg-primary-700 text-white font-medium px-5 py-2.5 rounded-xl hover:bg-primary-800 transition-colors shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 disabled:opacity-70"
-    >
-      {status === "sending" ? (
-        <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />
-      ) : (
-        <Send className="w-4 h-4" aria-hidden="true" />
+    <div className="flex flex-col gap-2">
+      <button
+        onClick={handleRefer}
+        disabled={status === "sending"}
+        className="inline-flex items-center justify-center gap-2 bg-primary-700 text-white font-medium px-5 py-2.5 rounded-xl hover:bg-primary-800 transition-colors shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 disabled:opacity-70 self-start"
+      >
+        {status === "sending" ? (
+          <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />
+        ) : (
+          <Send className="w-4 h-4" aria-hidden="true" />
+        )}
+        {status === "sending" ? "Creating referral..." : "Refer to Clinic"}
+      </button>
+      {errorMessage && (
+        <p className="text-xs text-red-600">
+          Failed to create referral: {errorMessage}
+        </p>
       )}
-      {status === "sending"
-        ? "Sending Referral..."
-        : status === "error"
-          ? "Retry Referral"
-          : "Refer to Clinic"}
-    </button>
+    </div>
   );
 }

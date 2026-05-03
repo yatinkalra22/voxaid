@@ -305,13 +305,11 @@ export default async function PatientDetailPage({
           </p>
         )}
 
-        <div className="mt-6 flex flex-col sm:flex-row gap-3">
+        <div className="mt-6">
           <ReferralButton
-            patientName={displayName}
-            patientPhone={patient.phone}
+            screeningId={s.id}
             riskLevel={s.riskLevel}
-            depressionScore={s.depressionScore}
-            actionPlan={s.actionPlan}
+            patientPhone={patient.phone}
           />
         </div>
       </section>
