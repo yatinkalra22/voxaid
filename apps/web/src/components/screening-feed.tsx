@@ -141,7 +141,7 @@ function FeedItem({ row }: { row: FeedRow }) {
   return (
     <li>
       <Link
-        href={`/dashboard/patient/${row.patientId}`}
+        href={`/dashboard/patient/${row.patientId}?screening=${row.screeningId}`}
         className="grid grid-cols-[auto_minmax(0,1fr)_auto] sm:grid-cols-[auto_minmax(160px,210px)_minmax(0,1fr)_auto] items-center gap-3 sm:gap-4 px-4 sm:px-6 py-3.5 hover:bg-slate-50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-400"
       >
         <div className="flex items-center gap-3 shrink-0">

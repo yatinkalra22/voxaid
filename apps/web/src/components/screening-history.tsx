@@ -1,7 +1,8 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
-import { ChevronDown, Languages, MessageSquare, Phone } from "lucide-react";
+import { ArrowUpRight, ChevronDown, Languages, MessageSquare, Phone } from "lucide-react";
+import Link from "next/link";
 import { useState } from "react";
 import { Sparkline } from "./sparkline";
 import { RiskPill } from "./risk-pill";
@@ -21,6 +22,7 @@ export interface HistoryScreening {
 
 interface ScreeningHistoryProps {
   screenings: HistoryScreening[];
+  patientId?: string;
 }
 
 function formatDate(iso: string): string {
@@ -31,7 +33,18 @@ function formatDate(iso: string): string {
   });
 }
 
-export function ScreeningHistory({ screenings }: ScreeningHistoryProps) {
+function formatDateTime(iso: string): string {
+  const d = new Date(iso);
+  return `${d.toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+  })} · ${d.toLocaleTimeString(undefined, {
+    hour: "numeric",
+    minute: "2-digit",
+  })}`;
+}
+
+export function ScreeningHistory({ screenings, patientId }: ScreeningHistoryProps) {
   if (!screenings.length) {
     return (
       <div className="text-sm text-slate-500 italic">
@@ -77,14 +90,20 @@ export function ScreeningHistory({ screenings }: ScreeningHistoryProps) {
 
       <ul className="divide-y divide-slate-100 border-t border-slate-100">
         {screenings.map((s) => (
-          <HistoryRow key={s.id} screening={s} />
+          <HistoryRow key={s.id} screening={s} patientId={patientId} />
         ))}
       </ul>
     </div>
   );
 }
 
-function HistoryRow({ screening }: { screening: HistoryScreening }) {
+function HistoryRow({
+  screening,
+  patientId,
+}: {
+  screening: HistoryScreening;
+  patientId?: string;
+}) {
   const [open, setOpen] = useState(false);
   const SourceIcon = screening.source === "whatsapp" ? MessageSquare : Phone;
 
@@ -100,8 +119,8 @@ function HistoryRow({ screening }: { screening: HistoryScreening }) {
           className={`w-4 h-4 text-slate-400 shrink-0 transition-transform ${open ? "rotate-180" : ""}`}
         />
         <div className="flex-1 flex items-center gap-3 min-w-0">
-          <span className="text-sm font-medium text-slate-700 tabular-nums w-24 shrink-0">
-            {formatDate(screening.createdAt)}
+          <span className="text-sm font-medium text-slate-700 tabular-nums w-36 shrink-0">
+            {formatDateTime(screening.createdAt)}
           </span>
           <RiskPill risk={screening.riskLevel} />
           <span className="text-sm font-semibold text-slate-900 tabular-nums">
@@ -154,6 +173,17 @@ function HistoryRow({ screening }: { screening: HistoryScreening }) {
                   {screening.actionPlan || "—"}
                 </p>
               </div>
+              {patientId && (
+                <div className="pt-1">
+                  <Link
+                    href={`/dashboard/patient/${patientId}?screening=${screening.id}`}
+                    className="inline-flex items-center gap-1 text-xs font-medium text-primary-700 hover:text-primary-800"
+                  >
+                    View full details
+                    <ArrowUpRight className="w-3 h-3" />
+                  </Link>
+                </div>
+              )}
             </div>
           </motion.div>
         )}

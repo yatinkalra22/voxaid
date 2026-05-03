@@ -119,8 +119,10 @@ export async function generateMetadata({
 
 export default async function PatientDetailPage({
   params,
+  searchParams,
 }: {
   params: { id: string };
+  searchParams: { screening?: string };
 }) {
   const apiPatient = await getPatient(params.id);
   const mockPatient = MOCK_PATIENTS.find((p) => p.id === params.id);
@@ -153,7 +155,13 @@ export default async function PatientDetailPage({
         },
       ];
 
-  const latest = apiPatient?.screenings[0];
+  const requestedId = searchParams?.screening;
+  const selected =
+    apiPatient?.screenings.find((sc) => sc.id === requestedId) ??
+    apiPatient?.screenings[0];
+  const latestId = apiPatient?.screenings[0]?.id;
+  const isViewingLatest = !apiPatient || selected?.id === latestId;
+
   const patient = apiPatient
     ? {
         name: apiPatient.name,
@@ -161,18 +169,18 @@ export default async function PatientDetailPage({
         language: apiPatient.language,
         latitude: apiPatient.latitude ?? 0,
         longitude: apiPatient.longitude ?? 0,
-        screening: latest
+        screening: selected
           ? {
-              id: latest.id,
-              depressionScore: latest.depressionScore ?? 0,
-              riskLevel: toRiskLevel(latest.depressionRisk),
-              transcript: latest.transcript ?? "",
-              transcriptEn: latest.transcriptEn ?? null,
-              actionPlan: latest.actionPlan ?? "",
-              biomarkers: toBiomarkers(latest.biomarkers),
-              createdAt: latest.createdAt,
-              language: latest.language ?? apiPatient.language,
-              hasAudio: !!latest.audioUrl,
+              id: selected.id,
+              depressionScore: selected.depressionScore ?? 0,
+              riskLevel: toRiskLevel(selected.depressionRisk),
+              transcript: selected.transcript ?? "",
+              transcriptEn: selected.transcriptEn ?? null,
+              actionPlan: selected.actionPlan ?? "",
+              biomarkers: toBiomarkers(selected.biomarkers),
+              createdAt: selected.createdAt,
+              language: selected.language ?? apiPatient.language,
+              hasAudio: !!selected.audioUrl,
             }
           : null,
       }
@@ -214,7 +222,7 @@ export default async function PatientDetailPage({
     "speechRate",
   ];
 
-  const pastScreenings = screenings.slice(1);
+  const otherScreenings = screenings.filter((sc) => sc.id !== s.id);
   const actionPlanLines = (s.actionPlan ?? "")
     .split(/\n+|(?:^|\s)[-•]\s+/)
     .map((l) => l.trim())
@@ -230,6 +238,21 @@ export default async function PatientDetailPage({
         <ArrowLeft className="w-4 h-4" />
         Back to patients
       </Link>
+
+      {!isViewingLatest && (
+        <div className="flex items-center justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5 text-sm">
+          <span className="inline-flex items-center gap-2 text-amber-800">
+            <History className="w-4 h-4" />
+            Viewing a past screening from {new Date(s.createdAt).toLocaleString()}
+          </span>
+          <Link
+            href={`/dashboard/patient/${params.id}`}
+            className="text-xs font-medium text-amber-900 hover:text-amber-700 underline-offset-2 hover:underline shrink-0"
+          >
+            View latest →
+          </Link>
+        </div>
+      )}
 
       {/* Header card */}
       <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 space-y-5">
@@ -366,18 +389,26 @@ export default async function PatientDetailPage({
 
       {/* Screening history */}
       <section className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
-        <header className="flex items-center gap-2 mb-5">
-          <History className="w-4 h-4 text-primary-700" />
-          <h2 className="font-heading font-semibold text-slate-900">
-            Screening History
-          </h2>
+        <header className="flex items-center justify-between gap-2 mb-5">
+          <div className="flex items-center gap-2">
+            <History className="w-4 h-4 text-primary-700" />
+            <h2 className="font-heading font-semibold text-slate-900">
+              Other Screenings
+            </h2>
+          </div>
+          <span className="text-xs text-slate-500">
+            Click any to load its full details above
+          </span>
         </header>
-        {pastScreenings.length === 0 ? (
+        {otherScreenings.length === 0 ? (
           <p className="text-sm text-slate-500">
-            This is the first screening for this patient. History will appear here as new calls come in.
+            This is the only screening on record. History will appear here as new calls come in.
           </p>
         ) : (
-          <ScreeningHistory screenings={pastScreenings} />
+          <ScreeningHistory
+            screenings={otherScreenings}
+            patientId={params.id}
+          />
         )}
       </section>
     </div>
