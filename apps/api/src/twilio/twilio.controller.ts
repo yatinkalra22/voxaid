@@ -40,12 +40,16 @@ export class TwilioController {
       'Welcome to VoxAID. Please describe how you have been feeling over the past two weeks. Speak naturally for about 30 seconds.',
     );
 
-    // Record up to 30 seconds of speech, then POST to /twilio/recording
+    // Record up to 30 seconds of speech, then POST to /twilio/recording.
+    // Pass `from` via query string — recording callback is a separate webhook
+    // and Twilio doesn't include the caller's number in its payload.
+    const apiBase = this.config.get<string>('API_BASE_URL');
+    const recordingCallback = `${apiBase}/twilio/recording?from=${encodeURIComponent(from)}`;
     response.record({
       maxLength: 30,
       playBeep: true,
       trim: 'do-not-trim',
-      recordingStatusCallback: `${this.config.get<string>('API_BASE_URL')}/twilio/recording`,
+      recordingStatusCallback: recordingCallback,
       recordingStatusCallbackMethod: 'POST',
       recordingStatusCallbackEvent: ['completed'],
     });
@@ -72,9 +76,11 @@ export class TwilioController {
   @Post('recording')
   async handleRecordingCallback(@Req() req: Request, @Res() res: Response) {
     const { RecordingUrl, RecordingSid, CallSid, RecordingDuration } = req.body;
+    const fromQuery = typeof req.query.from === 'string' ? req.query.from : undefined;
+    const from = fromQuery && fromQuery !== 'unknown' ? fromQuery : undefined;
 
     this.logger.log(
-      `Recording ready: sid=${RecordingSid} call=${CallSid} duration=${RecordingDuration}s`,
+      `Recording ready: sid=${RecordingSid} call=${CallSid} from=${from ?? 'unknown'} duration=${RecordingDuration}s`,
     );
     const audioUrl = `${RecordingUrl}.wav`;
     this.logger.log(`Audio URL: ${audioUrl}`);
@@ -84,6 +90,7 @@ export class TwilioController {
       audioUrl,
       source: 'ivr',
       callSid: CallSid,
+      from,
     } satisfies TranscriptionJobData);
 
     res.status(200).send('OK');
