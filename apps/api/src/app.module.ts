@@ -12,6 +12,7 @@ import { WhisperModule } from './whisper/whisper.module.js';
 import { ClaudeModule } from './claude/claude.module.js';
 import { TtsModule } from './tts/tts.module.js';
 import { ReferralModule } from './referral/referral.module.js';
+import { ScreeningsModule } from './screenings/screenings.module.js';
 
 @Module({
   imports: [
@@ -25,6 +26,7 @@ import { ReferralModule } from './referral/referral.module.js';
     ClaudeModule,
     TtsModule,
     ReferralModule,
+    ScreeningsModule,
     TwilioModule,
   ],
   controllers: [AppController],
