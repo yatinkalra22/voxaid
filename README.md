@@ -117,7 +117,7 @@ Patient (any phone)
           │
           ▼
 ┌──────────────────────────────────────────────────────┐
-│                    NestJS API (Render)                │
+│                    NestJS API (AWS EC2)                │
 │                                                       │
 │  ┌─────────────┐  ┌──────────────┐  ┌─────────────┐ │
 │  │   Whisper    │  │  FastAPI ML  │  │   Llama 3.3  │ │
@@ -189,7 +189,7 @@ Patient (any phone)
 | **Queue** | Upstash Redis + BullMQ |
 | **Auth** | Clerk |
 | **Maps** | Leaflet + OpenStreetMap (free, no key) |
-| **Deploy** | Vercel (web) + Render (api + ml) |
+| **Deploy** | Vercel (web) + AWS EC2 Docker (api + ml) |
 
 ---
 
@@ -314,97 +314,118 @@ cd apps/web && vercel --prod
 Set these env vars in the Vercel dashboard:
 `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY`, `API_URL`, `API_SECRET_KEY`
 
-### API (NestJS) → Render
+### API + ML → AWS EC2 (Docker Compose)
 
-1. Push your code to GitHub.
-2. Go to [dashboard.render.com](https://dashboard.render.com).
-3. Click **+ New** (top right) → **Web Service**.
-4. Connect your GitHub account and select the `voxaid` repo.
-5. Fill in these settings:
+Both backend services run on a single EC2 instance via Docker Compose. The deploy script handles instance creation, Docker setup, and deployment.
 
-| Setting | Value |
-|---|---|
-| Name | `voxaid-api` |
-| Region | Pick closest to you (e.g. Oregon US West) |
-| Branch | `main` |
-| Root Directory | `apps/api` |
-| Runtime | **Node** |
-| Build Command | `pnpm install && npx prisma generate && pnpm build` |
-| Start Command | `node dist/src/main.js` |
-| Instance Type | **Free** |
+**Prerequisites:**
 
-6. Click **Advanced** → **Add Environment Variable** and add each variable from `apps/api/.env`:
+**Step 1 — AWS account & CLI:**
 
-| Variable | Value |
-|---|---|
-| `DATABASE_URL` | Your Supabase pooler URL (port 6543) |
-| `DIRECT_URL` | Your Supabase direct URL (port 5432) |
-| `TWILIO_ACCOUNT_SID` | `AC...` |
-| `TWILIO_AUTH_TOKEN` | Your Twilio auth token |
-| `TWILIO_PHONE_NUMBER` | `+1...` |
-| `GROQ_API_KEY` | `gsk_...` |
-| `ELEVENLABS_API_KEY` | Your ElevenLabs key |
-| `UPSTASH_REDIS_URL` | `rediss://...` |
-| `API_BASE_URL` | `https://voxaid-api.onrender.com` |
-| `API_PORT` | `3001` |
-| `ML_SERVICE_URL` | `https://voxaid-ml.onrender.com` |
-| `API_SECRET_KEY` | Same key you generated with `openssl rand -hex 32` |
-| `CORS_ORIGINS` | `https://your-app.vercel.app` (update after Vercel deploy) |
+1. Create a free AWS account at [aws.amazon.com](https://aws.amazon.com) (requires credit card, but `t3.small` is ~$0.02/hr)
+2. Create an IAM user with programmatic access:
+   - Go to [IAM Console](https://console.aws.amazon.com/iam/) → Users → Create user
+   - Attach an **inline policy** (JSON below) — scoped to only what the deploy script needs:
+   ```json
+   {
+     "Version": "2012-10-17",
+     "Statement": [
+       {
+         "Effect": "Allow",
+         "Action": [
+           "ec2:RunInstances",
+           "ec2:DescribeInstances",
+           "ec2:TerminateInstances",
+           "ec2:CreateSecurityGroup",
+           "ec2:DeleteSecurityGroup",
+           "ec2:AuthorizeSecurityGroupIngress",
+           "ec2:DescribeSecurityGroups",
+           "ec2:DescribeImages",
+           "ec2:DescribeKeyPairs",
+           "ec2:CreateKeyPair",
+           "ec2:CreateTags"
+         ],
+         "Resource": "*"
+       },
+       {
+         "Effect": "Allow",
+         "Action": "sts:GetCallerIdentity",
+         "Resource": "*"
+       }
+     ]
+   }
+   ```
+   - Go to the user → Security credentials → Create access key → Choose "CLI"
+   - Save the **Access Key ID** and **Secret Access Key**
+3. Install AWS CLI: [docs.aws.amazon.com/cli/latest/userguide/install-cliv2.html](https://docs.aws.amazon.com/cli/latest/userguide/install-cliv2.html)
+4. Configure it:
+```bash
+aws configure
+# AWS Access Key ID:     paste your access key
+# AWS Secret Access Key: paste your secret key
+# Default region name:   us-east-1
+# Default output format: json
+```
 
-7. Click **Deploy Web Service**. Wait for the build to finish (~2-3 min).
+**Step 2 — SSH key pair:**
 
-### ML (FastAPI) → Render
+```bash
+aws ec2 create-key-pair --key-name voxaid \
+  --query 'KeyMaterial' --output text > ~/.ssh/voxaid.pem
+chmod 400 ~/.ssh/voxaid.pem
+```
 
-1. Go to [dashboard.render.com](https://dashboard.render.com).
-2. Click **+ New** → **Web Service**.
-3. Select the same `voxaid` repo.
-4. Fill in these settings:
+**Step 3 — Environment file:**
 
-| Setting | Value |
-|---|---|
-| Name | `voxaid-ml` |
-| Region | Same region as API |
-| Branch | `main` |
-| Root Directory | `apps/ml` |
-| Runtime | **Python 3** |
-| Build Command | `pip install -r requirements.txt` |
-| Start Command | `uvicorn main:app --host 0.0.0.0 --port $PORT` |
-| Instance Type | **Free** |
+```bash
+cp .env.example .env
+# Fill in all values (DATABASE_URL, TWILIO_*, GROQ_API_KEY, etc.)
+```
 
-5. Click **Advanced** → **Add Environment Variable**:
+**Deploy:**
 
-| Variable | Value |
-|---|---|
-| `CORS_ORIGINS` | `https://voxaid-api.onrender.com` |
+```bash
+# First time: creates EC2 instance + deploys
+./scripts/deploy-aws.sh
 
-6. Click **Deploy Web Service**. Wait for the build to finish (~3-5 min).
+# Subsequent deploys (code changes only)
+./scripts/deploy-aws.sh deploy
+```
+
+The script will output the public IP. Update these after deploy:
+
+| Where | Variable | Value |
+|---|---|---|
+| `.env` | `API_BASE_URL` | `http://<EC2_IP>:3001` |
+| `.env` | `ML_SERVICE_URL` | `http://ml:8001` (internal Docker network) |
+| Vercel dashboard | `API_URL` | `http://<EC2_IP>:3001` |
+| Twilio console | Voice webhook | `http://<EC2_IP>:3001/twilio/voice` |
+
+**Instance details:**
+- Type: `t3.small` (2 vCPU, 2 GB RAM) — ~$0.02/hr
+- OS: Amazon Linux 2023
+- Ports open: 22 (SSH), 3001 (API), 8001 (ML)
+- Always-on — no cold starts like Render free tier
 
 ### Post-deploy checklist
 
-After both Render services are live, you'll see their URLs on the dashboard (e.g. `https://voxaid-api.onrender.com`).
-
-**1. Update Vercel env vars** (after deploying web):
-```
-API_URL=https://voxaid-api.onrender.com
-```
-
-**2. Update Render API env vars** with the actual URLs:
-```
-API_BASE_URL=https://voxaid-api.onrender.com
-ML_SERVICE_URL=https://voxaid-ml.onrender.com
-CORS_ORIGINS=https://your-app.vercel.app
+**1. Verify services:**
+```bash
+curl http://<EC2_IP>:3001          # API root
+curl http://<EC2_IP>:8001/docs     # ML Swagger docs
 ```
 
-**3. Set Twilio webhooks** (in Twilio console → Phone Numbers → your number):
+**2. Set Twilio webhook** (Twilio console → Phone Numbers → your number):
 ```
-Voice webhook (POST):    https://voxaid-api.onrender.com/twilio/voice
-WhatsApp webhook (POST): https://voxaid-api.onrender.com/twilio/whatsapp
+Voice webhook (POST): http://<EC2_IP>:3001/twilio/voice
 ```
 
-**4. Verify everything works:**
-- Visit `https://voxaid-api.onrender.com/health` — should return `{ "status": "ok" }`
-- Visit `https://voxaid-ml.onrender.com/health` — should return `{ "status": "ok" }`
-- Visit your Vercel URL — dashboard should load with live data
+**3. Update Vercel env var:**
+```
+API_URL=http://<EC2_IP>:3001
+```
+
+**4. Visit your Vercel URL** — dashboard should load with live data
 
 ---
 
