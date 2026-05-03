@@ -69,6 +69,12 @@ export default function Home() {
             >
               Priya&apos;s Story
             </Link>
+            <Link
+              href="/dashboard"
+              className="text-sm font-medium text-white bg-primary-700 hover:bg-primary-800 px-4 py-2 rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 focus-visible:ring-offset-2"
+            >
+              CHW Login
+            </Link>
           </div>
         </div>
       </nav>
