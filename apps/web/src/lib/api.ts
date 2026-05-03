@@ -42,6 +42,7 @@ export interface Screening {
   patientId: string;
   audioUrl: string;
   transcript: string | null;
+  transcriptEn: string | null;
   language: string;
   depressionScore: number | null;
   depressionRisk: 'low' | 'moderate' | 'high' | 'critical' | null;

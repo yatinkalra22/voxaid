@@ -35,6 +35,7 @@ model Screening {
   patient         Patient   @relation(fields: [patientId], references: [id])
   audioUrl        String    @map("audio_url")
   transcript      String?
+  transcriptEn    String?   @map("transcript_en")
   language        String    @default("en")
   depressionScore Float?    @map("depression_score")
   depressionRisk  RiskLevel? @map("depression_risk")

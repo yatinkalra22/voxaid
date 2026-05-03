@@ -20,6 +20,8 @@ export interface FeedRow {
   riskLevel: RiskLevel;
   depressionScore: number;
   transcript: string;
+  transcriptEn?: string | null;
+  language?: string;
   source: string;
   createdAt: string;
 }
@@ -168,8 +170,13 @@ function FeedItem({ row }: { row: FeedRow }) {
         <div className="hidden sm:flex min-w-0 items-start gap-2 text-sm text-slate-600">
           <Quote className="w-3 h-3 mt-1 shrink-0 text-slate-300" aria-hidden />
           <span className="italic line-clamp-2 leading-snug">
-            {row.transcript || "—"}
+            {row.transcriptEn || row.transcript || "—"}
           </span>
+          {row.transcriptEn && row.language && row.language.toLowerCase() !== "en" && row.language.toLowerCase() !== "english" && (
+            <span className="text-[10px] uppercase tracking-wider text-slate-400 shrink-0 ml-1 mt-1">
+              {(row.language.length <= 3 ? row.language : row.language.slice(0, 2)).toUpperCase()}
+            </span>
+          )}
         </div>
 
         <div className="flex items-center gap-2 sm:gap-3 shrink-0">

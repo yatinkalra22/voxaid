@@ -11,6 +11,7 @@ import {
   FileText,
   Sparkles,
   History,
+  Languages,
 } from "lucide-react";
 import { getPatient, getAudioUrl } from "@/lib/api";
 import type { Biomarkers } from "@/lib/api";
@@ -59,6 +60,14 @@ const LANGUAGE_NAMES: Record<string, string> = {
   english: "English",
   hi: "Hindi",
   hindi: "Hindi",
+  mr: "Marathi",
+  marathi: "Marathi",
+  pa: "Punjabi",
+  punjabi: "Punjabi",
+  ta: "Tamil",
+  tamil: "Tamil",
+  te: "Telugu",
+  telugu: "Telugu",
   bn: "Bengali",
   bengali: "Bengali",
   sw: "Swahili",
@@ -70,9 +79,31 @@ const LANGUAGE_NAMES: Record<string, string> = {
   urdu: "Urdu",
   zh: "Chinese",
   id: "Indonesian",
+  fr: "French",
+  ar: "Arabic",
+};
+const LANGUAGE_NATIVE: Record<string, string> = {
+  hi: "हिन्दी",
+  mr: "मराठी",
+  pa: "ਪੰਜਾਬੀ",
+  ta: "தமிழ்",
+  te: "తెలుగు",
+  bn: "বাংলা",
+  ur: "اردو",
+  sw: "Kiswahili",
+  es: "Español",
+  pt: "Português",
+  ar: "العربية",
+  zh: "中文",
+  fr: "Français",
 };
 function languageDisplay(code: string): string {
-  return LANGUAGE_NAMES[code.toLowerCase()] ?? code.toUpperCase();
+  if (!code) return "—";
+  const key = code.toLowerCase();
+  const en = LANGUAGE_NAMES[key];
+  const native = LANGUAGE_NATIVE[key.slice(0, 2)];
+  if (en && native) return `${en} (${native})`;
+  return en ?? code.toUpperCase();
 }
 
 export async function generateMetadata({
@@ -104,6 +135,8 @@ export default async function PatientDetailPage({
         riskLevel: toRiskLevel(s.depressionRisk),
         source: s.source ?? "ivr",
         transcript: s.transcript ?? "",
+        transcriptEn: s.transcriptEn ?? null,
+        language: s.language ?? apiPatient.language,
         actionPlan: s.actionPlan ?? "",
       }))
     : [
@@ -114,6 +147,8 @@ export default async function PatientDetailPage({
           riskLevel: mockPatient!.lastScreening.riskLevel,
           source: "ivr",
           transcript: mockPatient!.lastScreening.transcript,
+          transcriptEn: mockPatient!.lastScreening.transcriptEn ?? null,
+          language: mockPatient!.language,
           actionPlan: mockPatient!.lastScreening.actionPlan,
         },
       ];
@@ -132,6 +167,7 @@ export default async function PatientDetailPage({
               depressionScore: latest.depressionScore ?? 0,
               riskLevel: toRiskLevel(latest.depressionRisk),
               transcript: latest.transcript ?? "",
+              transcriptEn: latest.transcriptEn ?? null,
               actionPlan: latest.actionPlan ?? "",
               biomarkers: toBiomarkers(latest.biomarkers),
               createdAt: latest.createdAt,
@@ -151,6 +187,7 @@ export default async function PatientDetailPage({
           depressionScore: mockPatient!.lastScreening.depressionScore,
           riskLevel: mockPatient!.lastScreening.riskLevel,
           transcript: mockPatient!.lastScreening.transcript,
+          transcriptEn: mockPatient!.lastScreening.transcriptEn ?? null,
           actionPlan: mockPatient!.lastScreening.actionPlan,
           biomarkers: mockPatient!.lastScreening.biomarkers,
           createdAt: mockPatient!.lastScreening.createdAt,
@@ -249,9 +286,23 @@ export default async function PatientDetailPage({
               {languageDisplay(s.language)}
             </span>
           </header>
-          <p className="text-sm text-slate-700 leading-relaxed italic bg-slate-50 rounded-xl p-4 border-l-2 border-primary-200">
+          <p
+            lang={s.language}
+            className="text-sm text-slate-700 leading-relaxed italic bg-slate-50 rounded-xl p-4 border-l-2 border-primary-200"
+          >
             &ldquo;{s.transcript || "—"}&rdquo;
           </p>
+          {s.transcriptEn && (
+            <div className="mt-4 pt-4 border-t border-slate-100">
+              <div className="flex items-center gap-1.5 text-[11px] uppercase tracking-wider text-slate-500 mb-2">
+                <Languages className="w-3 h-3" />
+                English translation
+              </div>
+              <p className="text-sm text-slate-700 leading-relaxed">
+                {s.transcriptEn}
+              </p>
+            </div>
+          )}
           <div className="mt-3 text-[11px] text-slate-400">
             Recorded {new Date(s.createdAt).toLocaleString()}
           </div>

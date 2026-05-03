@@ -1,7 +1,7 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
-import { ChevronDown, MessageSquare, Phone } from "lucide-react";
+import { ChevronDown, Languages, MessageSquare, Phone } from "lucide-react";
 import { useState } from "react";
 import { Sparkline } from "./sparkline";
 import { RiskPill } from "./risk-pill";
@@ -14,6 +14,8 @@ export interface HistoryScreening {
   riskLevel: RiskLevel;
   source: string;
   transcript: string;
+  transcriptEn?: string | null;
+  language?: string;
   actionPlan: string;
 }
 
@@ -126,9 +128,23 @@ function HistoryRow({ screening }: { screening: HistoryScreening }) {
                 <div className="text-[11px] uppercase tracking-wider text-slate-500 mb-1">
                   Transcript
                 </div>
-                <p className="text-slate-700 italic bg-slate-50 rounded-lg p-3 leading-relaxed">
+                <p
+                  lang={screening.language}
+                  className="text-slate-700 italic bg-slate-50 rounded-lg p-3 leading-relaxed"
+                >
                   &ldquo;{screening.transcript || "—"}&rdquo;
                 </p>
+                {screening.transcriptEn && (
+                  <div className="mt-2 pl-3">
+                    <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-slate-500 mb-1">
+                      <Languages className="w-3 h-3" />
+                      English
+                    </div>
+                    <p className="text-slate-700 leading-relaxed">
+                      {screening.transcriptEn}
+                    </p>
+                  </div>
+                )}
               </div>
               <div>
                 <div className="text-[11px] uppercase tracking-wider text-slate-500 mb-1">

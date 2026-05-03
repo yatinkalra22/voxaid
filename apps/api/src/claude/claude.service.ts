@@ -58,18 +58,7 @@ export class ClaudeService {
    * Uses Anthropic Claude if ANTHROPIC_API_KEY is set, otherwise Groq Llama 3.3.
    */
   async generateActionPlan(input: ActionPlanInput): Promise<ActionPlanOutput> {
-    const languageMap: Record<string, string> = {
-      hi: 'Hindi',
-      en: 'English',
-      es: 'Spanish',
-      sw: 'Swahili',
-      bn: 'Bengali',
-      fr: 'French',
-      pt: 'Portuguese',
-      ar: 'Arabic',
-    };
-
-    const lang = languageMap[input.language] ?? 'English';
+    const lang = languageName(input.language);
 
     this.logger.log(
       `Generating action plan for ${input.patientName} in ${lang} (risk: ${input.riskLevel})`,
@@ -163,4 +152,100 @@ Respond with ONLY valid JSON, no markdown.`;
         return 'routine';
     }
   }
+
+  /**
+   * Translate a transcript to English. Returns null if source is already
+   * English or if the call fails — best-effort, never blocks the pipeline.
+   */
+  async translateToEnglish(
+    text: string,
+    sourceLanguage: string,
+  ): Promise<string | null> {
+    const lang = (sourceLanguage || '').toLowerCase();
+    if (!text || text.length < 5) return null;
+    if (lang === 'en' || lang === 'english' || lang.startsWith('en-')) {
+      return null;
+    }
+    const langName = languageName(sourceLanguage);
+    const prompt = `Translate the following ${langName} text to English. Preserve emotional tone and the speaker's voice. Return only the translation, no preface, no quotes, no commentary.
+
+TEXT:
+${text}`;
+
+    this.logger.log(
+      `Translating ${langName} → English (${text.length} chars)`,
+    );
+
+    try {
+      const out = this.useAnthropic
+        ? await this.callAnthropicPlain(prompt)
+        : await this.callGroqPlain(prompt);
+      const trimmed = out.trim();
+      return trimmed.length > 0 ? trimmed : null;
+    } catch (err) {
+      this.logger.warn(
+        `Translation failed: ${err instanceof Error ? err.message : String(err)}`,
+      );
+      return null;
+    }
+  }
+
+  private async callAnthropicPlain(prompt: string): Promise<string> {
+    const message = await this.anthropic!.messages.create({
+      model: 'claude-sonnet-4-6',
+      max_tokens: 1024,
+      messages: [{ role: 'user', content: prompt }],
+    });
+    const firstBlock = message.content[0];
+    return firstBlock && firstBlock.type === 'text' ? firstBlock.text : '';
+  }
+
+  private async callGroqPlain(prompt: string): Promise<string> {
+    const message = await this.groq!.chat.completions.create({
+      model: 'llama-3.3-70b-versatile',
+      max_tokens: 1024,
+      messages: [
+        {
+          role: 'system',
+          content:
+            'You are a precise translator. Output only the translation in plain text — no markdown, no quotes, no explanations.',
+        },
+        { role: 'user', content: prompt },
+      ],
+    });
+    return message.choices[0]?.message?.content ?? '';
+  }
+}
+
+const LANGUAGE_NAMES: Record<string, string> = {
+  hi: 'Hindi',
+  hindi: 'Hindi',
+  en: 'English',
+  english: 'English',
+  es: 'Spanish',
+  spanish: 'Spanish',
+  sw: 'Swahili',
+  swahili: 'Swahili',
+  bn: 'Bengali',
+  bengali: 'Bengali',
+  ur: 'Urdu',
+  urdu: 'Urdu',
+  mr: 'Marathi',
+  marathi: 'Marathi',
+  pa: 'Punjabi',
+  punjabi: 'Punjabi',
+  ta: 'Tamil',
+  tamil: 'Tamil',
+  te: 'Telugu',
+  telugu: 'Telugu',
+  fr: 'French',
+  pt: 'Portuguese',
+  ar: 'Arabic',
+  id: 'Indonesian',
+  zh: 'Chinese',
+};
+
+function languageName(code: string): string {
+  if (!code) return 'English';
+  return LANGUAGE_NAMES[code.toLowerCase()] ?? code;
 }

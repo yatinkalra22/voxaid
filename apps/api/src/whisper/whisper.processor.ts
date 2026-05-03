@@ -71,7 +71,10 @@ function inferLanguageFromPhone(phone: string | undefined): string | undefined {
   if (phone.startsWith('+880')) return 'bn'; // Bangladesh
   if (phone.startsWith('+233')) return 'en'; // Ghana (English official)
   if (phone.startsWith('+254')) return 'sw'; // Kenya — Swahili (also English)
-  if (phone.startsWith('+91')) return 'hi'; // India — Hindi (Whisper handles English fine even with hi hint for code-switching)
+  // India (+91): no hint. India has 22 official languages — Hindi, Marathi,
+  // Punjabi, Tamil, Telugu, Bengali, etc. A blanket 'hi' hint mistranscribes
+  // every non-Hindi caller. Whisper auto-detect with our temperature=0 +
+  // domain prompt is reliable on 20-30s IVR audio.
   if (phone.startsWith('+92')) return 'ur'; // Pakistan
   if (phone.startsWith('+62')) return 'id'; // Indonesia
   if (phone.startsWith('+52')) return 'es'; // Mexico
@@ -151,16 +154,24 @@ export class WhisperProcessor implements OnModuleInit, OnModuleDestroy {
         });
         this.logger.log(`Patient: id=${patient.id} name="${patient.name}" phone="${patient.phone}"`);
 
-        // Step 4: Generate action plan via Claude
-        const actionPlan = await this.claudeService.generateActionPlan({
-          patientName: patient.name,
-          language,
-          transcript: text,
-          depressionScore: mlResult.depressionScore,
-          riskLevel: mlResult.riskLevel,
-          biomarkers: mlResult.biomarkers,
-        });
-        this.logger.log(`Action plan generated: urgency=${actionPlan.urgency}`);
+        // Step 4: Generate action plan + translate to English in parallel.
+        // Translation is best-effort — never blocks the screening.
+        const [actionPlan, transcriptEn] = await Promise.all([
+          this.claudeService.generateActionPlan({
+            patientName: patient.name,
+            language,
+            transcript: text,
+            depressionScore: mlResult.depressionScore,
+            riskLevel: mlResult.riskLevel,
+            biomarkers: mlResult.biomarkers,
+          }),
+          this.claudeService
+            .translateToEnglish(text, language)
+            .catch(() => null),
+        ]);
+        this.logger.log(
+          `Action plan generated: urgency=${actionPlan.urgency}; translated=${transcriptEn ? 'yes' : 'no'}`,
+        );
 
         // Step 5: Save screening to DB
         const screening = await this.prisma.screening.create({
@@ -168,6 +179,7 @@ export class WhisperProcessor implements OnModuleInit, OnModuleDestroy {
             patientId: patient.id,
             audioUrl: job.data.audioUrl,
             transcript: text,
+            transcriptEn,
             language,
             depressionScore: mlResult.depressionScore,
             depressionRisk: mlResult.riskLevel as

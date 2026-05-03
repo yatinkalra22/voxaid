@@ -14,6 +14,7 @@ export interface MockPatient {
     depressionScore: number;
     riskLevel: RiskLevel;
     transcript: string;
+    transcriptEn?: string;
     actionPlan: string;
     biomarkers: {
       f0Mean: number;
@@ -41,6 +42,8 @@ export const MOCK_PATIENTS: MockPatient[] = [
       riskLevel: "critical",
       transcript:
         "Main bahut thak gayi hoon... raat ko neend nahi aati. Kuch achha nahi lagta. Bachche ki chinta rehti hai. Kaam mein mann nahi lagta.",
+      transcriptEn:
+        "I am very tired... I can't sleep at night. Nothing feels good. I keep worrying about my child. I have no interest in my work.",
       actionPlan:
         "Immediate referral to PHC Patna for mental health assessment. Recommend PHQ-9 screening. Follow up within 48 hours. Inform ASHA supervisor.",
       biomarkers: {
@@ -93,6 +96,8 @@ export const MOCK_PATIENTS: MockPatient[] = [
       riskLevel: "moderate",
       transcript:
         "A veces me siento triste pero puedo hacer mis cosas. Duermo bien la mayoria de las noches. Mi familia me ayuda mucho.",
+      transcriptEn:
+        "Sometimes I feel sad but I can still get things done. I sleep well most nights. My family supports me a lot.",
       actionPlan:
         "Continue monitoring. Schedule next screening in 2 weeks. Provide mental health awareness materials in Spanish.",
       biomarkers: {
@@ -119,6 +124,8 @@ export const MOCK_PATIENTS: MockPatient[] = [
       riskLevel: "low",
       transcript:
         "Ami bhalo achi. Shobkichu thik ache. Bacchara school e jacche. Amar sharir bhalo ache.",
+      transcriptEn:
+        "I am doing well. Everything is fine. The children are going to school. My health is good.",
       actionPlan:
         "No immediate action required. Routine follow-up in 1 month. Patient appears stable.",
       biomarkers: {
@@ -145,6 +152,8 @@ export const MOCK_PATIENTS: MockPatient[] = [
       riskLevel: "high",
       transcript:
         "Sijisikia vizuri siku hizi. Ninajisikia mpweke sana. Watoto wangu hawanisikii. Sipati usingizi mzuri.",
+      transcriptEn:
+        "I have not been feeling well these days. I feel very lonely. My children do not listen to me. I am not sleeping well.",
       actionPlan:
         "Refer to Kenyatta National Hospital mental health clinic. Urgent follow-up in 3 days. Alert CHW supervisor for home visit.",
       biomarkers: {
@@ -171,6 +180,8 @@ export const MOCK_PATIENTS: MockPatient[] = [
       riskLevel: "moderate" as const,
       transcript:
         "Thoda sa mann udaas rehta hai. Khana bana leti hoon, bachche ka dhyan rakh leti hoon. Par kabhi kabhi bahut akela lagta hai.",
+      transcriptEn:
+        "I feel a little down sometimes. I cook, I take care of my child. But sometimes I feel very lonely.",
       actionPlan:
         "Schedule follow-up screening in 2 weeks. Recommend peer support group at local Anganwadi centre. Monitor sleep and appetite patterns.",
       biomarkers: {

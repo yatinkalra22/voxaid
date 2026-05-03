@@ -52,28 +52,29 @@ export default function Home() {
     <main className="min-h-screen">
       {/* Nav */}
       <nav className="fixed top-0 w-full z-50 bg-white/80 backdrop-blur-md border-b border-slate-100">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
-          <span className="font-heading text-xl font-bold text-primary-700">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 h-14 sm:h-16 flex items-center justify-between gap-3">
+          <span className="font-heading text-lg sm:text-xl font-bold text-primary-700 shrink-0">
             VoxAID
           </span>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 sm:gap-4">
             <a
               href="#how-it-works"
-              className="text-sm font-medium text-slate-600 hover:text-primary-700 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 focus-visible:ring-offset-2 rounded"
+              className="hidden sm:inline text-sm font-medium text-slate-600 hover:text-primary-700 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 focus-visible:ring-offset-2 rounded"
             >
               How it works
             </a>
             <Link
               href="/story"
-              className="text-sm font-medium text-slate-600 hover:text-primary-700 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 focus-visible:ring-offset-2 rounded"
+              className="hidden sm:inline text-sm font-medium text-slate-600 hover:text-primary-700 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 focus-visible:ring-offset-2 rounded"
             >
               Priya&apos;s Story
             </Link>
             <Link
               href="/dashboard"
-              className="text-sm font-medium text-white bg-primary-700 hover:bg-primary-800 px-4 py-2 rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 focus-visible:ring-offset-2"
+              className="text-sm font-medium text-white bg-primary-700 hover:bg-primary-800 px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 focus-visible:ring-offset-2 whitespace-nowrap"
             >
-              CHW Login
+              <span className="sm:hidden">Login</span>
+              <span className="hidden sm:inline">CHW Login</span>
             </Link>
           </div>
         </div>
@@ -193,8 +194,9 @@ export default function Home() {
                 Multilingual
               </h3>
               <p className="mt-2 text-sm text-slate-600">
-                Hindi, Spanish, Swahili, English — and any language Whisper
-                supports.
+                Hindi, Marathi, Punjabi, Bengali, Spanish, Swahili, English —
+                every transcript also translated to English so the CHW can read
+                it.
               </p>
             </div>
             <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">

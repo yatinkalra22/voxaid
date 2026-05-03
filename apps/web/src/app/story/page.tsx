@@ -15,18 +15,19 @@ export default function StoryPage() {
     <main className="min-h-screen bg-white">
       {/* Nav */}
       <nav className="fixed top-0 w-full z-50 bg-white/80 backdrop-blur-md border-b border-slate-100">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 h-14 sm:h-16 flex items-center justify-between gap-3">
           <Link
             href="/"
-            className="font-heading text-xl font-bold text-primary-700"
+            className="font-heading text-lg sm:text-xl font-bold text-primary-700 shrink-0"
           >
             VoxAID
           </Link>
           <Link
             href="/dashboard"
-            className="text-sm font-medium text-primary-700 hover:text-primary-800 transition-colors"
+            className="text-sm font-medium text-white bg-primary-700 hover:bg-primary-800 px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg transition-colors whitespace-nowrap"
           >
-            Open Dashboard
+            <span className="sm:hidden">Dashboard</span>
+            <span className="hidden sm:inline">Open Dashboard</span>
           </Link>
         </div>
       </nav>
@@ -170,17 +171,25 @@ export default function StoryPage() {
           <StoryBlock
             icon={MapPin}
             label="The Referral"
-            title="One click. The clinic knows she's coming."
+            title="One click. A shareable referral, an automated callback."
           >
             <p>
-              Sunita taps &ldquo;Refer to Clinic&rdquo; on her dashboard. An
-              SMS is sent to the PHC Patna clinic admin with Priya&apos;s
-              details, risk score, and urgency: &ldquo;Schedule assessment
-              within 24 hours.&rdquo;
+              Sunita taps &ldquo;Refer to Clinic&rdquo; on her dashboard.
+              VoxAID writes a referral record with Priya&apos;s risk score,
+              AI summary, and a 24-hour action window — and gives Sunita
+              a shareable link she pastes into the channel she already uses
+              with the PHC (WhatsApp, SMS, or a printed slip).
             </p>
             <p>
-              The loop is closed. From phone call to clinic referral in under
-              2 minutes.
+              VoxAID doesn&apos;t assume the clinic has email or a messaging
+              account — most rural PHCs don&apos;t. We give the CHW the record
+              and the artifact; she chooses the channel.
+            </p>
+            <p>
+              Then VoxAID calls Priya back. A voice in Hindi tells her she
+              has been referred and a health worker will follow up within
+              24 hours. The loop is closed — call in, screening, action plan,
+              call out.
             </p>
           </StoryBlock>
 

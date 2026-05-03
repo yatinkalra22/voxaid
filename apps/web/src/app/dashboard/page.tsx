@@ -52,6 +52,8 @@ export default async function DashboardPage() {
         riskLevel: toRiskLevel(s.depressionRisk),
         depressionScore: s.depressionScore ?? 0,
         transcript: s.transcript ?? "",
+        transcriptEn: s.transcriptEn ?? null,
+        language: s.language ?? p.language,
         source: s.source ?? "ivr",
         createdAt: s.createdAt,
       })),
@@ -81,6 +83,8 @@ export default async function DashboardPage() {
       riskLevel: p.lastScreening.riskLevel,
       depressionScore: p.lastScreening.depressionScore,
       transcript: p.lastScreening.transcript,
+      transcriptEn: p.lastScreening.transcriptEn ?? null,
+      language: p.language,
       source: "ivr",
       createdAt: p.lastScreening.createdAt,
     }));
