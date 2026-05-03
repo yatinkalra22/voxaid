@@ -7,6 +7,40 @@ import { TRANSCRIPTION_QUEUE } from '../queue/queue.module.js';
 import type { TranscriptionJobData } from '../whisper/whisper.processor.js';
 import { TwilioSignatureGuard } from '../guards/twilio-signature.guard.js';
 
+/**
+ * Pick a Polly voice + prompt language based on caller's country code.
+ * Polly.Aditi can speak both English (en-IN) and Hindi (hi-IN).
+ */
+function pickVoice(from: string) {
+  if (from.startsWith('+91')) {
+    return {
+      voice: 'Polly.Aditi',
+      language: 'hi-IN',
+      welcome:
+        'VoxAID में आपका स्वागत है। बीप के बाद, कृपया अपना नाम बताएं और पिछले दो हफ्तों में आप कैसा महसूस कर रहे हैं।',
+      thanks: 'धन्यवाद। एक स्वास्थ्य कार्यकर्ता जल्द ही आपसे संपर्क करेगा।',
+    } as const;
+  }
+  if (from.startsWith('+52')) {
+    return {
+      voice: 'Polly.Lupe',
+      language: 'es-US',
+      welcome:
+        'Bienvenido a VoxAID. Después del tono, diga su nombre y cómo se ha sentido durante las últimas dos semanas.',
+      thanks:
+        'Gracias. Un trabajador de salud comunitaria se comunicará con usted pronto.',
+    } as const;
+  }
+  return {
+    voice: 'Polly.Aditi',
+    language: 'en-IN',
+    welcome:
+      'Welcome to VoxAID. After the beep, please say your name and describe how you have been feeling for the past two weeks.',
+    thanks:
+      'Thank you. A community health worker will follow up with you soon.',
+  } as const;
+}
+
 @Controller('twilio')
 @UseGuards(TwilioSignatureGuard)
 export class TwilioController {
@@ -34,12 +68,10 @@ export class TwilioController {
     // and the IVR loops. Point action at /twilio/done to end the call cleanly.
     const doneAction = `${apiBase}/twilio/done`;
 
+    const v = pickVoice(from);
     const response = new twiml.VoiceResponse();
     response.pause({ length: 1 });
-    response.say(
-      { voice: 'Polly.Aditi', language: 'en-IN' },
-      'Welcome to VoxAID. After the beep, please say your name and describe how you have been feeling for the past two weeks.',
-    );
+    response.say({ voice: v.voice, language: v.language }, v.welcome);
     response.record({
       maxLength: 30,
       playBeep: true,
@@ -60,12 +92,11 @@ export class TwilioController {
    * recording completes. Thanks the caller and hangs up.
    */
   @Post('done')
-  handleDone(@Req() _req: Request, @Res() res: Response) {
+  handleDone(@Req() req: Request, @Res() res: Response) {
+    const from = req.body?.From ?? 'unknown';
+    const v = pickVoice(from);
     const response = new twiml.VoiceResponse();
-    response.say(
-      { voice: 'Polly.Aditi', language: 'en-IN' },
-      'Thank you. A community health worker will follow up with you soon.',
-    );
+    response.say({ voice: v.voice, language: v.language }, v.thanks);
     response.hangup();
     res.type('text/xml');
     res.send(response.toString());

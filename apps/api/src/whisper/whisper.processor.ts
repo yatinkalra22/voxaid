@@ -22,8 +22,8 @@ export interface TranscriptionJobData {
   name?: string;
 }
 
-const NAME_INTROS = /(?:my name is|i am|i'm|this is|name is|call me)\s+([a-z][a-z'\-]*(?:\s+[a-z][a-z'\-]*)?)/i;
-const FILLER_FIRST_WORDS = new Set(['i', 'hi', 'hello', 'hey', 'so', 'um', 'uh', 'well', 'okay', 'ok', 'yeah', 'yes', 'no']);
+const NAME_INTROS = /(?:my name is|i am|i'm|this is|name is|call me|mera naam(?:\s+hai)?|mein hoon|main hoon)\s+([a-z][a-z'\-]*(?:\s+[a-z][a-z'\-]*)?)/i;
+const FILLER_FIRST_WORDS = new Set(['i', 'hi', 'hello', 'hey', 'so', 'um', 'uh', 'well', 'okay', 'ok', 'yeah', 'yes', 'no', 'thank', 'thanks']);
 
 function titleCase(s: string): string {
   return s
@@ -33,20 +33,53 @@ function titleCase(s: string): string {
     .join(' ');
 }
 
+/** Looks-like-a-name guard: 2-30 alpha chars, not a filler. */
+function isPlausibleName(s: string): boolean {
+  if (!s) return false;
+  const trimmed = s.trim();
+  if (trimmed.length < 2 || trimmed.length > 30) return false;
+  if (!/^[a-z][a-z'\- ]+$/i.test(trimmed)) return false;
+  if (FILLER_FIRST_WORDS.has(trimmed.toLowerCase().split(' ')[0])) return false;
+  return true;
+}
+
 /** Extract a likely caller name from the start of a Whisper transcript. */
 function extractNameFromTranscript(transcript: string): string | undefined {
   if (!transcript) return undefined;
   const t = transcript.trim().replace(/^[^a-z]+/i, '');
+  if (t.length < 4) return undefined; // Junk transcripts (e.g. just "hi.") never produce a real name.
 
   const m = t.match(NAME_INTROS);
-  if (m?.[1]) return titleCase(m[1].trim());
+  if (m?.[1] && isPlausibleName(m[1])) return titleCase(m[1].trim());
 
-  // Fallback: first 1-2 words if they don't look like fillers.
+  // Fallback: first word if it doesn't look like a filler.
   const words = t.split(/[\s,.!?]+/).filter(Boolean).slice(0, 2);
   if (!words.length) return undefined;
-  if (FILLER_FIRST_WORDS.has(words[0].toLowerCase())) return undefined;
-  if (!/^[a-z][a-z'-]+$/i.test(words[0])) return undefined;
+  if (!isPlausibleName(words[0])) return undefined;
   return titleCase(words[0]);
+}
+
+/**
+ * Map a phone number's country code to an ISO 639-1 language hint for
+ * Whisper. This dramatically reduces hallucinations on short audio: without
+ * a hint, Whisper auto-detect frequently picks Korean/Japanese/Vietnamese
+ * for noisy English recordings.
+ */
+function inferLanguageFromPhone(phone: string | undefined): string | undefined {
+  if (!phone || !phone.startsWith('+')) return undefined;
+  // Longest prefixes first so +1-something doesn't shadow +1.
+  if (phone.startsWith('+880')) return 'bn'; // Bangladesh
+  if (phone.startsWith('+233')) return 'en'; // Ghana (English official)
+  if (phone.startsWith('+254')) return 'sw'; // Kenya — Swahili (also English)
+  if (phone.startsWith('+91')) return 'hi'; // India — Hindi (Whisper handles English fine even with hi hint for code-switching)
+  if (phone.startsWith('+92')) return 'ur'; // Pakistan
+  if (phone.startsWith('+62')) return 'id'; // Indonesia
+  if (phone.startsWith('+52')) return 'es'; // Mexico
+  if (phone.startsWith('+55')) return 'pt'; // Brazil
+  if (phone.startsWith('+86')) return 'zh'; // China
+  if (phone.startsWith('+44')) return 'en'; // UK
+  if (phone.startsWith('+1')) return 'en'; // US/Canada
+  return undefined; // Let Whisper auto-detect when we have no signal.
 }
 
 /**
@@ -77,12 +110,16 @@ export class WhisperProcessor implements OnModuleInit, OnModuleDestroy {
       async (job: Job<TranscriptionJobData>) => {
         this.logger.log(`Processing job ${job.id}: ${job.data.source} audio`);
 
-        // Step 1: Transcribe via Whisper
+        // Step 1: Transcribe via Whisper. Pass a language hint based on
+        // caller's country code so short/noisy audio doesn't get
+        // auto-detected as Korean / random other languages.
+        const languageHint = inferLanguageFromPhone(job.data.from);
         const { text, language } = await this.whisperService.transcribe(
           job.data.audioUrl,
+          languageHint,
         );
         this.logger.log(
-          `Transcribed: lang=${language} text="${text.slice(0, 80)}..."`,
+          `Transcribed: hint=${languageHint ?? 'auto'} lang=${language} text="${text.slice(0, 80)}..."`,
         );
 
         // Step 2: Call ML service for biomarkers + classification
