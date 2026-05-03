@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { RiskPill } from "./risk-pill";
 import { RISK_CONFIG, type RiskLevel } from "@/lib/mock-data";
+import { maskPhone } from "@/lib/phone";
 
 export interface FeedRow {
   screeningId: string;
@@ -163,7 +164,9 @@ function FeedItem({ row }: { row: FeedRow }) {
           </p>
           <p className="text-xs text-slate-500 flex items-center gap-1.5 mt-0.5">
             <SourceIcon className="w-3 h-3 shrink-0" />
-            <span className="truncate">{row.patientPhone}</span>
+            <span className="truncate tabular-nums">
+              {maskPhone(row.patientPhone)}
+            </span>
           </p>
         </div>
 

@@ -65,6 +65,57 @@ function extractNameFromTranscript(transcript: string): string | undefined {
  * a hint, Whisper auto-detect frequently picks Korean/Japanese/Vietnamese
  * for noisy English recordings.
  */
+interface GeoPoint {
+  latitude: number;
+  longitude: number;
+}
+
+const COUNTRY_CENTERS: { prefix: string; lat: number; lng: number }[] = [
+  // Longest prefixes first so +1-something doesn't shadow +1.
+  { prefix: '+880', lat: 23.8103, lng: 90.4125 }, // Bangladesh — Dhaka
+  { prefix: '+233', lat: 5.6037, lng: -0.187 }, // Ghana — Accra
+  { prefix: '+254', lat: -1.2921, lng: 36.8219 }, // Kenya — Nairobi
+  { prefix: '+91', lat: 22.5726, lng: 88.3639 }, // India — Kolkata-ish (centered between major cities)
+  { prefix: '+92', lat: 33.6844, lng: 73.0479 }, // Pakistan — Islamabad
+  { prefix: '+62', lat: -6.2088, lng: 106.8456 }, // Indonesia — Jakarta
+  { prefix: '+52', lat: 19.4326, lng: -99.1332 }, // Mexico — Mexico City
+  { prefix: '+55', lat: -23.5505, lng: -46.6333 }, // Brazil — São Paulo
+  { prefix: '+86', lat: 39.9042, lng: 116.4074 }, // China — Beijing
+  { prefix: '+44', lat: 51.5074, lng: -0.1278 }, // UK — London
+  { prefix: '+1', lat: 38.9072, lng: -77.0369 }, // US/Canada — DC
+];
+
+/**
+ * Stable hash of a string to two pseudo-random values in [-1, 1].
+ * Used to jitter caller locations so multiple callers from the same
+ * country don't stack on the same pixel on the map.
+ */
+function hashJitter(seed: string): { lat: number; lng: number } {
+  let h = 0;
+  for (let i = 0; i < seed.length; i++) {
+    h = ((h << 5) - h + seed.charCodeAt(i)) | 0;
+  }
+  const u = (h >>> 0) % 1024;
+  const v = (h >>> 10) % 1024;
+  return { lat: (u / 1024 - 0.5) * 4, lng: (v / 1024 - 0.5) * 4 }; // ±2°
+}
+
+/**
+ * Derive an approximate map location from the caller's phone country code,
+ * with a per-caller jitter so different patients land on different pixels.
+ * Returns null when we have no signal (anonymous caller, unknown country).
+ */
+function inferLocationFromPhone(phone: string | undefined): GeoPoint | null {
+  if (!phone || !phone.startsWith('+')) return null;
+  const center = COUNTRY_CENTERS.find((c) => phone.startsWith(c.prefix));
+  if (!center) return null;
+  const j = hashJitter(phone);
+  return {
+    latitude: center.lat + j.lat,
+    longitude: center.lng + j.lng,
+  };
+}
+
 function inferLanguageFromPhone(phone: string | undefined): string | undefined {
   if (!phone || !phone.startsWith('+')) return undefined;
   // Longest prefixes first so +1-something doesn't shadow +1.
@@ -141,15 +192,22 @@ export class WhisperProcessor implements OnModuleInit, OnModuleDestroy {
         //   all collapse into a single "unknown" patient.
         const phone = job.data.from ?? `anon-${job.data.callSid ?? Date.now()}`;
         const displayName = extractedName ?? job.data.from ?? 'Anonymous Caller';
+        // Country-code → approx coords, jittered per phone so multiple callers
+        // from the same country don't stack on the same map pixel.
+        const geo = inferLocationFromPhone(job.data.from);
         const patient = await this.prisma.patient.upsert({
           where: { phone },
           // Update the name on a return call only when a fresh name was captured.
+          // Don't touch lat/long on update — preserves any CHW-curated location.
           update: extractedName ? { name: extractedName } : {},
           create: {
             name: displayName,
             phone,
             language,
             assignedChwId: 'chw-demo-1',
+            ...(geo
+              ? { latitude: geo.latitude, longitude: geo.longitude }
+              : {}),
           },
         });
         this.logger.log(`Patient: id=${patient.id} name="${patient.name}" phone="${patient.phone}"`);
