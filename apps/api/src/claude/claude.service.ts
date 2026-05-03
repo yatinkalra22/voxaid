@@ -215,6 +215,73 @@ ${text}`;
     });
     return message.choices[0]?.message?.content ?? '';
   }
+
+  /**
+   * Pull the speaker's name out of a screening transcript. Returns null
+   * when the speaker never states a name — the model is instructed not to
+   * invent one. Handles non-Latin scripts, code-switched audio, and noisy
+   * transcripts that a regex can't.
+   */
+  async extractName(transcript: string): Promise<string | null> {
+    if (!transcript || transcript.trim().length < 4) return null;
+
+    const prompt = `You read transcripts from a voice-based mental-health screening. Patients are asked to say their name and describe how they have been feeling. Extract the speaker's name if — and only if — they clearly state it.
+
+TRANSCRIPT:
+"${transcript.slice(0, 2000)}"
+
+Rules:
+- Return ONLY a JSON object: {"name": "<name>"} or {"name": null}.
+- Use the speaker's actual name, properly capitalized (e.g. "Priya Sharma", not "PRIYA" or "priya sharma").
+- Transliterate non-Latin scripts to Latin (e.g. "मेरा नाम राज है" → "Raj").
+- Do NOT extract common nouns, app names, or filler phrases ("app", "phone", "patient", "anonymous").
+- Never invent a name. When unsure, return {"name": null}.`;
+
+    try {
+      const text = this.useAnthropic
+        ? await this.callAnthropicJson(prompt)
+        : await this.callGroqJson(prompt);
+      const parsed = JSON.parse(text) as { name: unknown };
+      const name = typeof parsed.name === 'string' ? parsed.name.trim() : null;
+      if (!name || name.toLowerCase() === 'null' || name.length > 60) {
+        return null;
+      }
+      this.logger.log(`Name extracted: "${name}"`);
+      return name;
+    } catch (err) {
+      this.logger.warn(
+        `Name extraction failed: ${err instanceof Error ? err.message : String(err)}`,
+      );
+      return null;
+    }
+  }
+
+  private async callAnthropicJson(prompt: string): Promise<string> {
+    const message = await this.anthropic!.messages.create({
+      model: 'claude-sonnet-4-6',
+      max_tokens: 128,
+      messages: [{ role: 'user', content: prompt }],
+    });
+    const firstBlock = message.content[0];
+    return firstBlock && firstBlock.type === 'text' ? firstBlock.text : '';
+  }
+
+  private async callGroqJson(prompt: string): Promise<string> {
+    const message = await this.groq!.chat.completions.create({
+      model: 'llama-3.3-70b-versatile',
+      max_tokens: 128,
+      response_format: { type: 'json_object' },
+      messages: [
+        {
+          role: 'system',
+          content:
+            'You extract structured data from clinical transcripts. Always respond with valid JSON only.',
+        },
+        { role: 'user', content: prompt },
+      ],
+    });
+    return message.choices[0]?.message?.content ?? '';
+  }
 }
 
 const LANGUAGE_NAMES: Record<string, string> = {
