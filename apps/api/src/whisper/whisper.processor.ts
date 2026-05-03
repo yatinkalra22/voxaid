@@ -1,4 +1,10 @@
-import { Injectable, Logger, Inject, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  Inject,
+  OnModuleInit,
+  OnModuleDestroy,
+} from '@nestjs/common';
 import { Worker, Job } from 'bullmq';
 import IORedis from 'ioredis';
 import { ConfigService } from '@nestjs/config';
@@ -33,22 +39,23 @@ export class WhisperProcessor implements OnModuleInit, OnModuleDestroy {
     private readonly prisma: PrismaService,
     private readonly config: ConfigService,
   ) {
-    this.mlServiceUrl = this.config.get<string>('ML_SERVICE_URL') || 'http://localhost:8001';
+    this.mlServiceUrl =
+      this.config.get<string>('ML_SERVICE_URL') || 'http://localhost:8001';
   }
 
   onModuleInit() {
     this.worker = new Worker<TranscriptionJobData>(
       TRANSCRIPTION_QUEUE,
       async (job: Job<TranscriptionJobData>) => {
-        this.logger.log(
-          `Processing job ${job.id}: ${job.data.source} audio`,
-        );
+        this.logger.log(`Processing job ${job.id}: ${job.data.source} audio`);
 
         // Step 1: Transcribe via Whisper
         const { text, language } = await this.whisperService.transcribe(
           job.data.audioUrl,
         );
-        this.logger.log(`Transcribed: lang=${language} text="${text.slice(0, 80)}..."`);
+        this.logger.log(
+          `Transcribed: lang=${language} text="${text.slice(0, 80)}..."`,
+        );
 
         // Step 2: Call ML service for biomarkers + classification
         const mlResult = await this.classifyAudio(job.data.audioUrl);
@@ -88,7 +95,11 @@ export class WhisperProcessor implements OnModuleInit, OnModuleDestroy {
             transcript: text,
             language,
             depressionScore: mlResult.depressionScore,
-            depressionRisk: mlResult.riskLevel as 'low' | 'moderate' | 'high' | 'critical',
+            depressionRisk: mlResult.riskLevel as
+              | 'low'
+              | 'moderate'
+              | 'high'
+              | 'critical',
             biomarkers: mlResult.biomarkers,
             actionPlan: actionPlan.actionPlan,
             source: job.data.source,
@@ -111,7 +122,9 @@ export class WhisperProcessor implements OnModuleInit, OnModuleDestroy {
             this.logger.log(`Patient callback initiated: callSid=${callSid}`);
           } catch (err) {
             // Non-fatal — screening is already saved
-            this.logger.warn(`TTS callback failed: ${err instanceof Error ? err.message : String(err)}`);
+            this.logger.warn(
+              `TTS callback failed: ${err instanceof Error ? err.message : String(err)}`,
+            );
           }
         }
 
@@ -169,7 +182,11 @@ export class WhisperProcessor implements OnModuleInit, OnModuleDestroy {
 
     // Send as multipart form to ML service
     const formData = new FormData();
-    formData.append('file', new Blob([audioBuffer], { type: 'audio/wav' }), 'recording.wav');
+    formData.append(
+      'audio',
+      new Blob([audioBuffer], { type: 'audio/wav' }),
+      'recording.wav',
+    );
 
     const mlRes = await fetch(`${this.mlServiceUrl}/classify`, {
       method: 'POST',
@@ -180,7 +197,7 @@ export class WhisperProcessor implements OnModuleInit, OnModuleDestroy {
       throw new Error(`ML service error: ${mlRes.status}`);
     }
 
-    const result = await mlRes.json() as {
+    const result = (await mlRes.json()) as {
       depression_score: number;
       risk_level: string;
       biomarkers: {
