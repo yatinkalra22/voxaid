@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { WhisperService } from './whisper.service.js';
+import { TranscriptionService } from './transcription.service.js';
 import { ClaudeService } from '../claude/claude.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 
@@ -89,7 +89,7 @@ export class ScreeningPipelineService {
   private readonly mlServiceUrl: string;
 
   constructor(
-    private readonly whisperService: WhisperService,
+    private readonly transcription: TranscriptionService,
     private readonly claudeService: ClaudeService,
     private readonly prisma: PrismaService,
     private readonly config: ConfigService,
@@ -103,7 +103,7 @@ export class ScreeningPipelineService {
 
     // Step 1: Transcribe via Whisper with a country-code language hint.
     const languageHint = inferLanguageFromPhone(data.from);
-    const { text, language } = await this.whisperService.transcribe(
+    const { text, language } = await this.transcription.transcribe(
       data.audioUrl,
       languageHint,
     );
