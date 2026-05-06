@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import Link from "next/link";
 import {
   Phone,
+  PhoneCall,
   Activity,
   Brain,
   MapPin,
@@ -12,6 +13,8 @@ import {
   Globe,
   Users,
 } from "lucide-react";
+
+const DEMO_VOICE_NUMBER = process.env.NEXT_PUBLIC_DEMO_VOICE_NUMBER;
 
 const STEPS = [
   {
@@ -106,18 +109,18 @@ export default function Home() {
 
             <div className="mt-10 flex flex-col sm:flex-row gap-4 justify-center">
               <a
-                href="#how-it-works"
+                href="#try-it"
                 className="inline-flex items-center justify-center gap-2 bg-primary-700 text-white font-medium px-6 py-3 rounded-xl hover:bg-primary-800 transition-colors shadow-md"
               >
-                See how it works
+                Try a screening now
                 <ArrowRight className="w-4 h-4" aria-hidden="true" />
               </a>
-              <Link
-                href="/story"
+              <a
+                href="#how-it-works"
                 className="inline-flex items-center justify-center gap-2 bg-white text-slate-700 font-medium px-6 py-3 rounded-xl border border-slate-200 hover:bg-slate-50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 focus-visible:ring-offset-2"
               >
-                Read Priya&apos;s Story
-              </Link>
+                See how it works
+              </a>
             </div>
           </motion.div>
         </div>
@@ -135,6 +138,85 @@ export default function Home() {
                 <div className="mt-2 text-sm text-slate-600">{stat.label}</div>
               </div>
             ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Try it now — live demo call */}
+      <section
+        id="try-it"
+        className="py-20 px-4 sm:px-6 bg-gradient-to-br from-primary-50 via-white to-primary-50/40"
+      >
+        <div className="max-w-3xl mx-auto">
+          <div className="bg-white rounded-3xl border border-primary-100 shadow-lg p-8 sm:p-12 text-center">
+            <div className="inline-flex items-center gap-2 bg-primary-50 text-primary-700 text-xs font-semibold px-3 py-1.5 rounded-full mb-4 uppercase tracking-wide">
+              <PhoneCall className="w-3.5 h-3.5" aria-hidden="true" />
+              Live demo
+            </div>
+            <h2 className="font-heading text-3xl sm:text-4xl font-bold text-slate-900">
+              Try a screening right now
+            </h2>
+            <p className="mt-4 text-slate-600 max-w-xl mx-auto">
+              Call the number below from any phone. You&apos;ll be greeted in
+              your language, then have 30 seconds to share how you&apos;ve been
+              feeling. Your screening lands on the live dashboard within a
+              minute.
+            </p>
+
+            {DEMO_VOICE_NUMBER ? (
+              <a
+                href={`tel:${DEMO_VOICE_NUMBER.replace(/[^\d+]/g, "")}`}
+                className="mt-8 inline-flex items-center gap-3 bg-primary-700 hover:bg-primary-800 text-white font-heading text-2xl sm:text-3xl font-bold px-6 sm:px-8 py-4 sm:py-5 rounded-2xl shadow-md transition-colors tabular-nums focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 focus-visible:ring-offset-2"
+              >
+                <Phone className="w-6 h-6" aria-hidden="true" />
+                {DEMO_VOICE_NUMBER}
+              </a>
+            ) : (
+              <div className="mt-8 inline-flex items-center gap-3 bg-slate-100 text-slate-500 font-heading text-lg sm:text-xl px-6 sm:px-8 py-4 sm:py-5 rounded-2xl">
+                Demo number coming soon
+              </div>
+            )}
+
+            <div className="mt-8 grid sm:grid-cols-3 gap-3 sm:gap-4 text-left">
+              {[
+                {
+                  step: "01",
+                  text: "Call the number above from any phone — feature phones work too.",
+                },
+                {
+                  step: "02",
+                  text: "After the beep, say your name and how you've been feeling for the past two weeks.",
+                },
+                {
+                  step: "03",
+                  text: "Open the dashboard to watch your screening appear in real time.",
+                },
+              ].map((s) => (
+                <div key={s.step} className="bg-slate-50 rounded-xl p-4">
+                  <div className="text-xs font-semibold text-primary-700 tabular-nums">
+                    {s.step}
+                  </div>
+                  <p className="mt-1 text-sm text-slate-700 leading-relaxed">
+                    {s.text}
+                  </p>
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4">
+              <Link
+                href="/dashboard"
+                className="inline-flex items-center gap-2 text-sm font-medium text-primary-700 hover:text-primary-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 focus-visible:ring-offset-2 rounded"
+              >
+                View live dashboard
+                <ArrowRight className="w-4 h-4" aria-hidden="true" />
+              </Link>
+            </div>
+
+            <p className="mt-8 text-xs text-slate-500 max-w-md mx-auto">
+              Demo only — VoxAID is a research prototype, not a medical device.
+              If you are in crisis, please contact your local emergency line.
+            </p>
           </div>
         </div>
       </section>
