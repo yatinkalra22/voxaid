@@ -7,7 +7,6 @@ import { AppService } from './app.service.js';
 import { PrismaModule } from './prisma/prisma.module.js';
 import { PatientsModule } from './patients/patients.module.js';
 import { TwilioModule } from './twilio/twilio.module.js';
-import { QueueModule } from './queue/queue.module.js';
 import { WhisperModule } from './whisper/whisper.module.js';
 import { ClaudeModule } from './claude/claude.module.js';
 import { TtsModule } from './tts/tts.module.js';
@@ -21,7 +20,6 @@ import { ScreeningsModule } from './screenings/screenings.module.js';
     ThrottlerModule.forRoot([{ ttl: 60_000, limit: 60 }]),
     PrismaModule,
     PatientsModule,
-    QueueModule,
     WhisperModule,
     ClaudeModule,
     TtsModule,

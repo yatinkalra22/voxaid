@@ -1,10 +1,11 @@
-import { Controller, Post, Req, Res, Logger, Inject, UseGuards } from '@nestjs/common';
+import { Controller, Post, Req, Res, Logger, UseGuards } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { Request, Response } from 'express';
 import { twiml } from 'twilio';
-import { Queue } from 'bullmq';
-import { TRANSCRIPTION_QUEUE } from '../queue/queue.module.js';
-import type { TranscriptionJobData } from '../whisper/whisper.processor.js';
+import {
+  ScreeningPipelineService,
+  type TranscriptionJobData,
+} from '../whisper/whisper.pipeline.js';
 import { TwilioSignatureGuard } from '../guards/twilio-signature.guard.js';
 
 /**
@@ -48,8 +49,20 @@ export class TwilioController {
 
   constructor(
     private readonly config: ConfigService,
-    @Inject(TRANSCRIPTION_QUEUE) private readonly transcriptionQueue: Queue,
+    private readonly pipeline: ScreeningPipelineService,
   ) {}
+
+  /**
+   * Run the screening pipeline in the background. Twilio webhooks have a 15s
+   * timeout and our pipeline can take longer (Whisper + ML + Claude), so we
+   * fire-and-forget and let the webhook return immediately.
+   */
+  private runPipeline(data: TranscriptionJobData): void {
+    void this.pipeline.run(data).catch((err: unknown) => {
+      const msg = err instanceof Error ? err.message : String(err);
+      this.logger.error(`Pipeline failed for ${data.source} call: ${msg}`);
+    });
+  }
 
   /**
    * POST /twilio/voice — Twilio hits this when a call comes in.
@@ -119,14 +132,14 @@ export class TwilioController {
     const audioUrl = `${RecordingUrl}.wav`;
     this.logger.log(`Audio URL: ${audioUrl}`);
 
-    // Enqueue for async Whisper transcription. Name is extracted from the
-    // transcript in the worker (combined prompt now records both).
-    await this.transcriptionQueue.add('transcribe', {
+    // Run the screening pipeline in the background. Name is extracted from
+    // the transcript inside the pipeline (combined prompt now records both).
+    this.runPipeline({
       audioUrl,
       source: 'ivr',
       callSid: CallSid,
       from,
-    } satisfies TranscriptionJobData);
+    });
 
     res.status(200).send('OK');
   }
@@ -151,12 +164,12 @@ export class TwilioController {
     if (hasAudio) {
       this.logger.log(`Voice note received: ${MediaUrl0}`);
 
-      // Enqueue for async Whisper transcription
-      await this.transcriptionQueue.add('transcribe', {
+      // Run the screening pipeline in the background.
+      this.runPipeline({
         audioUrl: MediaUrl0,
         source: 'whatsapp',
         from: From,
-      } satisfies TranscriptionJobData);
+      });
 
       response.message(
         'Thank you. We received your voice note and are analyzing it. You will receive your results shortly.',
