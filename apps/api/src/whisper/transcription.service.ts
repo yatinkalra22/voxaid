@@ -2,6 +2,13 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { DeepgramClient } from '@deepgram/sdk';
 
+function mostCommon(arr: string[]): string | undefined {
+  if (arr.length === 0) return undefined;
+  const counts: Record<string, number> = {};
+  for (const x of arr) counts[x] = (counts[x] ?? 0) + 1;
+  return Object.entries(counts).sort((a, b) => b[1] - a[1])[0][0];
+}
+
 /**
  * Speech-to-text service backed by Deepgram Nova-3.
  *
@@ -27,10 +34,13 @@ export class TranscriptionService {
   /**
    * Downloads audio from a URL and sends it to Deepgram for transcription.
    *
-   * `languageHint` (ISO 639-1) — if known from the caller's country code,
-   * pass it for higher accuracy. Otherwise we use Nova-3's `multi` mode,
-   * which auto-detects across English, Spanish, Hindi, Portuguese, French,
-   * German, Italian, Dutch, Japanese, and Russian with code-switching.
+   * Always uses Nova-3's `multi` mode. The country-code language hint is a
+   * weak demographic signal (a +1 caller can easily speak Hindi or Spanish),
+   * and forcing the wrong language on Deepgram produces an empty transcript
+   * — observed in production on a +1 caller speaking Hindi.
+   *
+   * `languageHint` is still accepted as a fallback for the returned language
+   * value, used downstream for action-plan localization.
    */
   async transcribe(
     audioUrl: string,
@@ -62,9 +72,11 @@ export class TranscriptionService {
       audioBuffer,
       {
         model: 'nova-3',
-        // Nova-3 'multi' enables code-switching across supported languages
-        // and returns the detected language per channel.
-        language: languageHint ?? 'multi',
+        // Always use Nova-3 'multi' (code-switching across en/es/hi/pt/fr/
+        // de/it/nl/ja/ru). Forcing a country-code-derived language hint here
+        // breaks transcription whenever the caller's spoken language differs
+        // from their phone's country code.
+        language: 'multi',
         smart_format: true,
         punctuate: true,
       },
@@ -80,8 +92,20 @@ export class TranscriptionService {
     const channel = result.results?.channels?.[0];
     const alternative = channel?.alternatives?.[0];
     const text = (alternative?.transcript ?? '').trim();
+
+    // In Nova-3 'multi' mode, language is reported per-word rather than
+    // per-channel. Pick the most-frequent word language as the dominant one.
+    // Falls back to channel-level detection, then country-code hint, then 'en'.
+    const wordLanguages = (alternative?.words ?? [])
+      .map((w) => (w as { language?: string }).language)
+      .filter((l): l is string => !!l);
+    const dominantLanguage = mostCommon(wordLanguages);
+
     const detectedLanguage =
-      channel?.detected_language ?? languageHint ?? 'en';
+      dominantLanguage ??
+      channel?.detected_language ??
+      languageHint ??
+      'en';
 
     this.logger.log(
       `Transcribed: lang=${detectedLanguage} text="${text.slice(0, 80)}..."`,
