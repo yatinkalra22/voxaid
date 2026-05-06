@@ -111,6 +111,21 @@ export class ScreeningPipelineService {
       `Transcribed: hint=${languageHint ?? 'auto'} lang=${language} text="${text.slice(0, 80)}..."`,
     );
 
+    // Guard: if the caller didn't actually speak (hung up, cut off, or only
+    // background noise), the transcript is empty or near-empty. Skip the rest
+    // of the pipeline — otherwise the ML biomarker model still produces a
+    // confident score on noise, polluting the dashboard with bogus "critical
+    // risk" entries on calls where nothing was said.
+    const trimmedText = text.trim();
+    if (trimmedText.length < 10) {
+      this.logger.warn(
+        `Skipping screening — transcript too short (${trimmedText.length} chars). ` +
+          `Caller likely hung up or was cut off before speaking. ` +
+          `from=${data.from ?? 'anon'} callSid=${data.callSid ?? '-'}`,
+      );
+      return;
+    }
+
     // Step 2: ML biomarkers + name extraction in parallel.
     const [mlResult, extractedNameFromTranscript] = await Promise.all([
       this.classifyAudio(data.audioUrl),

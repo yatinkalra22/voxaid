@@ -5,7 +5,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Whisper-ASR_99%2B_Languages-74aa9c?style=for-the-badge" alt="Whisper" />
+  <img src="https://img.shields.io/badge/Deepgram-Nova--3_Multilingual_ASR-13ef93?style=for-the-badge" alt="Deepgram Nova-3" />
   <img src="https://img.shields.io/badge/Llama_3.3-Action_Plans-d97706?style=for-the-badge" alt="Llama" />
   <img src="https://img.shields.io/badge/XGBoost-Depression_Classifier-306998?style=for-the-badge" alt="XGBoost" />
   <img src="https://img.shields.io/badge/Twilio-IVR_%2B_WhatsApp-f22f46?style=for-the-badge" alt="Twilio" />
@@ -63,7 +63,7 @@ A CHW hands a patient a basic phone and dials the VoxAID number. The patient spe
 
 **In under 60 seconds, VoxAID:**
 
-1. **Transcribes** speech via Whisper in 99+ languages
+1. **Transcribes** speech via Deepgram Nova-3 with multilingual code-switching
 2. **Extracts vocal biomarkers** — jitter, shimmer, F0, HNR, pause ratio, MFCCs (32 features)
 3. **Classifies risk** for depression via XGBoost trained on DAIC-WOZ clinical literature
 4. **Generates an action plan** in the patient's language via Llama 3.3 70B
@@ -120,9 +120,9 @@ Patient (any phone)
 │                    NestJS API (AWS EC2)                │
 │                                                       │
 │  ┌─────────────┐  ┌──────────────┐  ┌─────────────┐ │
-│  │   Whisper    │  │  FastAPI ML  │  │   Llama 3.3  │ │
-│  │   ASR        │  │  librosa +   │  │   Sonnet     │ │
-│  │   99+ langs  │  │  Praat +     │  │   Action     │ │
+│  │  Deepgram    │  │  FastAPI ML  │  │   Llama 3.3  │ │
+│  │  Nova-3 ASR  │  │  librosa +   │  │   /  Claude  │ │
+│  │  multilingual│  │  Praat +     │  │   Action     │ │
 │  │              │  │  XGBoost     │  │   Plans      │ │
 │  └─────────────┘  └──────────────┘  └─────────────┘ │
 │                                                       │
@@ -153,7 +153,7 @@ Patient (any phone)
 - **IVR + WhatsApp ingest** — Works on any phone, no app or internet on patient side
 - **32 vocal biomarkers** — Jitter, shimmer, F0, HNR, pause ratio, MFCCs via librosa + Praat
 - **XGBoost classifier** — Depression risk scored 0-100% from DAIC-WOZ literature distributions
-- **Multilingual** — Whisper ASR in 99+ languages, action plans generated in patient's language
+- **Multilingual** — Deepgram Nova-3 with code-switching across 10+ languages, action plans generated in patient's language
 - **Patient callback** — ElevenLabs TTS calls patient back with next steps in their language
 
 ### CHW Dashboard
@@ -167,7 +167,6 @@ Patient (any phone)
 ### Platform
 - **Clerk authentication** — Secure CHW login with middleware-protected routes
 - **Mobile-first design** — Built for $50 Android tablets (360px breakpoint first)
-- **BullMQ job queue** — Async transcription and analysis via Upstash Redis
 - **Zod validation** — Every API input validated, rate-limited, helmet-secured
 - **Live data indicator** — Dashboard shows when connected to live API vs mock data
 
@@ -179,14 +178,13 @@ Patient (any phone)
 |---|---|
 | **Monorepo** | Turborepo + pnpm |
 | **Web** | Next.js 14 (App Router), TypeScript, Tailwind CSS, shadcn/ui, Framer Motion |
-| **API** | NestJS 11, TypeScript, Prisma ORM, Zod, BullMQ |
+| **API** | NestJS 11, TypeScript, Prisma ORM, Zod |
 | **ML** | Python 3.11, FastAPI, librosa, praat-parselmouth, XGBoost |
 | **Voice** | Twilio Programmable Voice + WhatsApp Sandbox |
-| **ASR** | Whisper large-v3 via Groq (99+ languages, free) |
+| **ASR** | Deepgram Nova-3 (multilingual, code-switching, sub-second latency) |
 | **LLM** | Anthropic Claude Sonnet / Llama 3.3 via Groq (free fallback) |
 | **TTS** | ElevenLabs Multilingual v2 |
 | **Database** | Supabase Postgres + Prisma ORM |
-| **Queue** | Upstash Redis + BullMQ |
 | **Auth** | Clerk |
 | **Maps** | Leaflet + OpenStreetMap (free, no key) |
 | **Deploy** | Vercel (web) + AWS EC2 Docker (api + ml) |
@@ -200,7 +198,7 @@ Patient (any phone)
 | Component | Cost | Notes |
 |---|---|---|
 | Twilio voice (60s call) | $0.013 | India via Exotel: $0.005 |
-| Whisper via Groq (60s audio) | $0.00 | Free tier, no credit card |
+| Deepgram Nova-3 (60s audio) | $0.0043 | $200 free credit on signup |
 | Biomarker extraction | $0.0005 | CPU-only, negligible |
 | XGBoost inference | $0.0001 | Negligible |
 | LLM (action plans) | $0.00 | Groq free; or Claude $0.002/call |
@@ -274,8 +272,8 @@ Open `.env.local` and fill in your API keys. See **[docs/KEYS-SETUP.md](docs/KEY
 | File | Keys needed |
 |---|---|
 | `.env.local` | All keys (root reference) |
-| `apps/web/.env.local` | Clerk, `API_URL`, `API_SECRET_KEY` |
-| `apps/api/.env` | Twilio, Groq, ElevenLabs, Supabase, Upstash, R2, `API_SECRET_KEY` |
+| `apps/web/.env.local` | Clerk, `API_URL`, `API_SECRET_KEY`, `NEXT_PUBLIC_DEMO_VOICE_NUMBER` |
+| `apps/api/.env` | Twilio, Deepgram, Groq, ElevenLabs, Supabase, R2, `API_SECRET_KEY` |
 
 Generate a shared API secret for secure web-to-API communication:
 
@@ -312,7 +310,7 @@ cd apps/web && vercel --prod
 ```
 
 Set these env vars in the Vercel dashboard:
-`NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY`, `API_URL`, `API_SECRET_KEY`
+`NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY`, `API_URL`, `API_SECRET_KEY`, `NEXT_PUBLIC_DEMO_VOICE_NUMBER`
 
 ### API + ML → AWS EC2 (Docker Compose)
 
@@ -379,7 +377,7 @@ chmod 400 ~/.ssh/voxaid.pem
 
 ```bash
 cp .env.example .env
-# Fill in all values (DATABASE_URL, TWILIO_*, GROQ_API_KEY, etc.)
+# Fill in all values (DATABASE_URL, TWILIO_*, DEEPGRAM_API_KEY, GROQ_API_KEY, etc.)
 ```
 
 **Deploy:**

@@ -87,6 +87,10 @@ export class TwilioController {
     response.say({ voice: v.voice, language: v.language }, v.welcome);
     response.record({
       maxLength: 30,
+      // Disable DTMF termination. Twilio's default ('1234567890*#') ends the
+      // recording on ANY keypress — a stray accidental tap or carrier DTMF
+      // artifact kills it. A live call ended after 2s for exactly this reason.
+      finishOnKey: '',
       playBeep: true,
       trim: 'do-not-trim',
       action: doneAction,

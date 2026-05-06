@@ -413,7 +413,11 @@ deploy() {
   info "Syncing project files..."
   cd "$PROJECT_ROOT"
 
-  if ! rsync -avz --progress \
+  # --delete: remove files on the server that no longer exist locally, so
+  # deletions in git (e.g. retired modules) actually land on the box. Without
+  # this, stale .ts files linger and either break the Docker build or — worse —
+  # silently get bundled into the image and run alongside the new code.
+  if ! rsync -avz --progress --delete \
     --exclude 'node_modules' \
     --exclude '.next' \
     --exclude '.venv' \
